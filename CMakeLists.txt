@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(E33-Source-Editor)
+project(E33-Editor)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,7 +49,7 @@ link_directories(
 # ============================================================
 # LIBRERÍA DEL PLUGIN
 # ============================================================
-add_library(E33-Source-Editor SHARED
+add_library(E33-Editor SHARED
     plugin.cpp
     plugin.hpp
 
@@ -89,7 +89,6 @@ add_library(E33-Source-Editor SHARED
     src/source/audio-settings.hpp
 
     # PROPERTIES TAB
-
     src/properties/double-slider.cpp
     src/properties/double-slider.hpp
 
@@ -115,13 +114,11 @@ add_library(E33-Source-Editor SHARED
     src/properties/vertical-scroll-area.cpp
     src/properties/vertical-scroll-area.hpp
 
-   # TRANSFORM TAB
-
+    # TRANSFORM TAB
     src/transform/transform-tab.cpp
     src/transform/transform-tab.hpp
 
     # Contenido Transform
-
     src/transform/alignment.cpp
     src/transform/alignment.hpp
 
@@ -152,7 +149,6 @@ add_library(E33-Source-Editor SHARED
     src/scene-filters/scene-filters-tab.hpp
 
     # Contenido FILTERS TABS
-
     src/filters-files/filters-model.cpp
     src/filters-files/filters-model.hpp
 
@@ -173,7 +169,6 @@ add_library(E33-Source-Editor SHARED
     src/misc/misc-tab.hpp
 
     # WIDGETS
-
     src/widgets/alignment-grid.cpp
     src/widgets/alignment-grid.hpp
 
@@ -197,13 +192,13 @@ add_library(E33-Source-Editor SHARED
 )
 
 # FLAGS DEL TARGET
-target_compile_options(E33-Source-Editor PRIVATE
+target_compile_options(E33-Editor PRIVATE
     /permissive-
     /Zc:__cplusplus
 )
 
 # ENLACE
-target_link_libraries(E33-Source-Editor
+target_link_libraries(E33-Editor
     obs.lib
     obs-frontend-api
     Qt6::Core
