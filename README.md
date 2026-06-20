@@ -1,161 +1,163 @@
-**Un plugin para OBS que mejora el flujo de edición tanto en preproducción como en postproducción. Ofrece un dock unificado con acceso rápido a propiedades de fuentes, filtros de fuente y escena, transformaciones y otras herramientas para agilizar la edición de escenas.**
+**A plugin for OBS that improves the editing workflow in both pre‑production and post‑production. It provides a unified dock with quick access to source properties, source and scene filters, transformations, and other tools to speed up scene editing.**
 
-Este dock replantea la interfaz de OBS para que no tengas que estar abriendo y cerrando menús y ventanas constantemente, ahorrando tiempo en el desarrollo de tus proyectos.
+This dock reimagines the OBS interface so you don’t have to constantly open and close menus and windows, saving time while working on your projects.
 
-El acceso a los paneles se realiza a través de los botones de la cabecera que están marcados con un borde de color verde. El botón que representa al panel actual se marca con el borde en color rojo. También en la cabecera puedes editar el nombre de la escena y fuente seleccionadas.
+Access to the panels is done through the header buttons, highlighted with a green border. The button representing the active panel is marked with a red border. You can also edit the name of the selected scene and source directly from the header.
 
-(El plugin está traducido a todos los idiomas posibles en OBS)
-
----
-
-## 🟢 PANEL DE FUENTE
-Dependiendo de la fuente seleccionada, el panel muestra u oculta automáticamente las acciones disponibles.
-
-### Acciones comunes para todas las fuentes
-- Copiar, pegar referencia y pegar duplicado
-- Etiquetas de color para la fuente seleccionada
-
-### Acciones específicas de imagen
-- Captura de pantalla
-- Abrir proyector de la fuente
-- Filtro de escala
-- Modo de fusión
-- Método de fusión
-
-### Acciones específicas de vídeo
-- Desentrelazado
-
-### Transiciones de fuente al mostrar y ocultar
-- Propiedades de transición
-- Copiar y pegar transición
-
-### Acciones específicas de audio
-- Modo mono / estéreo
-- Control de balance
-- Intervalo de sincronización
-- Opciones de monitorización de audio
-- Selección de pistas de audio
-
-![Panel de fuente](images-readme/source.png)
+(The plugin is translated into all languages available in OBS)
 
 ---
 
-## 🟢 PANEL DE PROPIEDADES
-El panel de propiedades muestra exactamente las mismas opciones que ofrece OBS, pero integradas dentro del dock para evitar abrir ventanas flotantes.  
-Las propiedades se actualizan automáticamente al cambiar de fuente, sin necesidad de cerrar ni volver a abrir nada.
+## 🟢 SOURCE PANEL
+Depending on the selected source, the panel automatically shows or hides the available actions.
 
-Este panel respeta el diseño original de OBS, incluyendo:
-- Grupos de propiedades
-- Controles personalizados
-- Propiedades dinámicas según el tipo de fuente
-- Actualización en tiempo real al modificar valores
+### Common actions for all sources
+- Copy, paste reference, and paste duplicate  
+- Color labels for the selected source  
 
-### Características destacadas
-- Las propiedades se muestran siempre dentro del dock, sin ventanas externas.
-- Cambiar de fuente actualiza el panel al instante.
-- Compatible con todas las fuentes estándar de OBS.
-- Compatible con propiedades personalizadas de plugins externos.
+### Image‑specific actions
+- Screenshot  
+- Open source projector  
+- Scale filter  
+- Blend mode  
+- Blend method  
 
-![Propiedades 1](images-readme/properties1.png)
-![Propiedades 2](images-readme/properties2.png)
-![Propiedades 3](images-readme/properties3.png)
+### Video‑specific actions
+- Deinterlacing  
 
----
+### Show/Hide source transitions
+- Transition properties  
+- Copy and paste transition  
 
-## 🟢 PANEL DE TRANSFORMACIÓN
-El panel de transformación permite modificar la posición, escala, rotación, alineación y recorte de la fuente seleccionada, todo desde el dock y sin abrir el menú ni el panel nativo de OBS.
+### Audio‑specific actions
+- Mono / stereo mode  
+- Balance control  
+- Sync offset  
+- Audio monitoring options  
+- Audio track selection  
 
-El objetivo es ofrecer un control rápido y centralizado de los ajustes más utilizados durante la edición de escenas.
-
-### Controles disponibles
-- Copiar, pegar y restablecer transformación
-- Voltear horizontal y vertical
-- Girar 90º a derecha e izquierda, y girar 180º
-- Centrar vertical y horizontal
-- Ajustar a pantalla
-- Estirar a pantalla
-- Centrar en pantalla
-- Posición X / Y
-- Rotación  
-- Escala X / Y  
-- Punto de anclaje  
-- Alineación  
-- Tamaño de bounding box  
-- Tipo de bounding box (None, Stretch, Scale Inner, Scale Outer)  
-- Recorte (izquierda, derecha, arriba, abajo)
-
-### Características destacadas
-- Actualización automática al cambiar de fuente  
-- Sin ventanas emergentes  
-- Valores sincronizados en tiempo real con OBS  
-- Compatible con todas las fuentes que soportan transformaciones  
-
-![Transformación 1](images-readme/transform.png)
+![Source Panel](images-readme/source.png)
 
 ---
 
-## 🟢 PANELES DE FILTROS
-El dock incluye dos paneles independientes: **Filtros de fuente** y **Filtros de escena**.  
-Ambos funcionan igual que los filtros nativos de OBS, pero integrados dentro del dock y con mejoras importantes para la edición rápida.
+## 🟢 PROPERTIES PANEL
+The properties panel shows exactly the same options offered by OBS, but integrated inside the dock to avoid opening floating windows.  
+Properties update automatically when switching sources, with no need to close or reopen anything.
 
-Estos paneles cuentan con una cabecera propia para el control preciso de la edición de filtros.
-- Icono para expandir o colapsar todas las propiedades de los filtros.
-- Iconos para mostrar u ocultar los filtros.
-- Un botón para agregar filtros.
-- Un botón para eliminar los filtros seleccionados.
-- Dos botones para intercambiar entre filtros de **EFECTO** y filtros de **AUDIO**. Si la fuente seleccionada no permite filtros de audio el botón queda apagado e inútil.
-- Botones para copiar y pegar los filtros seleccionados.
-- Checkbox para seleccionar o deseleccionar todos los filtros.
-- Botón para abrir todos los filtros de la lista en ventanas independientes.
+This panel respects the original OBS design, including:
+- Property groups  
+- Custom controls  
+- Dynamic properties depending on the source type  
+- Real‑time updates when modifying values  
 
-Los filtros se muestran en una lista con:
-- Icono de expandir/colapsar
-- Icono de visibilidad
-- Nombre del filtro (editable)
-- Iconos para mover arriba y abajo
-- Checkbox de selección
-- Botón para abrir el filtro en una ventana externa (multiedición)
+### Key features
+- Properties always displayed inside the dock, no external windows  
+- Switching sources updates the panel instantly  
+- Compatible with all standard OBS sources  
+- Compatible with custom properties from external plugins  
 
-Al expandir un filtro, sus propiedades aparecen directamente debajo, empujando el resto de la lista de los filtros hacia abajo.
-
-### Características destacadas
-- Lista de filtros siempre visible dentro del dock  
-- Propiedades integradas sin abrir ventanas emergentes  
-- Renombrado directo del filtro  
-- Visibilidad sincronizada con OBS  
-- Botón para abrir filtros en ventanas independientes 
-- Actualización automática al cambiar de fuente o escena  
-
-![Filtros 1](images-readme/effect-filters.png)
-![Filtros 2](images-readme/audio-filters.png)
-![Filtros 3](images-readme/filters-popout.png)
+![Properties 1](images-readme/properties1.png)
+![Properties 2](images-readme/properties2.png)
+![Properties 3](images-readme/properties3.png)
 
 ---
 
-## 🎨 ICONOS PERSONALIZADOS 
+## 🟢 TRANSFORMATION PANEL
+The transformation panel allows you to modify the position, scale, rotation, alignment, and cropping of the selected source, all from the dock and without opening the native OBS menu or panel.
 
-He diseñado y añadido iconos para:
-- Panel de transformación
-- Copiar
-- Pegar
-- Restablecer
-- Voltear horizontal
-- Voltear vertical
-- Girar 90º derecha
-- Girar 90º izquierda
-- Girar 180º
+The goal is to offer fast, centralized control of the most commonly used adjustments during scene editing.
 
-## ⚠️ ADVERTENCIA ⚠️
+### Available controls
+- Copy, paste, and reset transform  
+- Flip horizontal and vertical  
+- Rotate 90º right, 90º left, and 180º  
+- Center vertically and horizontally  
+- Fit to screen  
+- Stretch to screen  
+- Center on screen  
+- Position X / Y  
+- Rotation  
+- Scale X / Y  
+- Anchor point  
+- Alignment  
+- Bounding box size  
+- Bounding box type (None, Stretch, Scale Inner, Scale Outer)  
+- Crop (left, right, top, bottom)  
 
-**⚠️⚠️⚠️⚠️Todos los iconos funcionan perfectos en el tema Yami de OBS.  
-Si usas otro tema los iconos no se mostrarán.⚠️⚠️⚠️⚠️**
+### Key features
+- Automatic updates when switching sources  
+- No popup windows  
+- Values synchronized in real time with OBS  
+- Compatible with all sources that support transformations  
+
+![Transform 1](images-readme/transform.png)
 
 ---
 
-## 📜 NOTA PERSONAL
-Tengo que confesar que **no he escrito ni una sola línea de código** porque soy un ignorante sobre temas de programación, así que para el desarrollo de este plugin me he apoyado en <img src="images-readme/copilot.png" height="18">, yo solo he tratado de guiar el proceso lo mejor que he sabido.
+## 🟢 FILTER PANELS
+The dock includes two independent panels: **Source Filters** and **Scene Filters**.  
+Both work just like OBS’s native filters, but integrated inside the dock with important improvements for fast editing.
 
-Este plugin es y será siempre **GRATUITO**. Es mi forma de agradecer a la comunidad sus aportaciones de las que tanto he aprendido en mis proyectos.
+These panels include their own header for precise filter editing:
+- Icon to expand or collapse all filter properties  
+- Icons to show or hide filters  
+- Button to add filters  
+- Button to delete selected filters  
+- Two buttons to switch between **EFFECT** and **AUDIO** filters. If the selected source does not support audio filters, the button is disabled  
+- Buttons to copy and paste selected filters  
+- Checkbox to select or deselect all filters  
+- Button to open all filters in independent windows  
+
+Filters are displayed in a list with:
+- Expand/collapse icon  
+- Visibility icon  
+- Filter name (editable)  
+- Icons to move filters up and down  
+- Selection checkbox  
+- Button to open the filter in an external window (multi‑edit)  
+
+When a filter is expanded, its properties appear directly below it, pushing the rest of the list downward.
+
+### Key features
+- Filter list always visible inside the dock  
+- Integrated properties without popup windows  
+- Direct filter renaming  
+- Visibility synchronized with OBS  
+- Button to open filters in independent windows  
+- Automatic updates when switching sources or scenes  
+
+![Filters 1](images-readme/effect-filters.png)
+![Filters 2](images-readme/audio-filters.png)
+![Filters 3](images-readme/filters-popout.png)
+
+---
+
+## 🎨 CUSTOM ICONS
+I designed and added icons for:
+- Transformation panel  
+- Copy  
+- Paste  
+- Reset  
+- Flip horizontal  
+- Flip vertical  
+- Rotate 90º right  
+- Rotate 90º left  
+- Rotate 180º  
+
+---
+
+## ⚠️ WARNING ⚠️
+
+**⚠️⚠️⚠️⚠️All icons work perfectly in the Yami OBS theme.  
+If you use another theme, the icons will not be displayed.⚠️⚠️⚠️⚠️**
+
+---
+
+## 📜 PERSONAL NOTE
+I must confess that I haven’t written a single line of code because I’m completely clueless about programming, so for the development of this plugin I relied on <img src="images-readme/copilot.png" height="18"> — I’ve only tried to guide the process as best as I could.
+
+This plugin is and will always be FREE. It’s my way of thanking the community for all the contributions from which I’ve learned so much in my projects.
 
 **¡¡ARRIBA ESPAÑA!!**
+
 **¡¡VIVA CRISTO REY!!**
