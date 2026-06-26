@@ -101,6 +101,10 @@ void Transitions::buildShowTransition(Box *box)
     btnConfig->setFixedSize(26, 26);
     btnConfig->setObjectName("sourcePropertiesButton");    
     btnConfig->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        btnConfig,
+        editorui::GetIconPath("Properties.svg").c_str()
+    );
 
     /* CONTROL DE TIEMPO — QSpinBox ESTILO OBS */
     timeSpin = new QSpinBox(lineShow);
@@ -267,6 +271,10 @@ void Transitions::buildHideTransition(Box *box)
     btnConfigHide->setFixedSize(26, 26);
     btnConfigHide->setObjectName("sourcePropertiesButton");
     btnConfigHide->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        btnConfigHide,
+        editorui::GetIconPath("Properties.svg").c_str()
+    );
     
     /* CONTROL DE TIEMPO — QSpinBox estilo OBS */
     timeSpinHide = new QSpinBox(lineHide);
