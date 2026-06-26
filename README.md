@@ -4,8 +4,6 @@ This dock reimagines the OBS interface so you don’t have to constantly open an
 
 Access to the panels is done through the header buttons, highlighted with a green border. The button representing the active panel is marked with a red border. You can also edit the name of the selected scene and source directly from the header.
 
-(The plugin is translated into all languages available in OBS)
-
 ---
 
 ## 🟢 SOURCE PANEL
