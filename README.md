@@ -151,7 +151,5 @@ I designed and added icons for:
 ---
 
 ## 📜 PERSONAL NOTE
-I must confess that I haven’t written a single line of code because I’m completely clueless about programming, so for the development of this plugin I relied on <img src="images-readme/copilot.png" height="18"> — I’ve only tried to guide the process as best as I could.
-
 This plugin is and will always be FREE. It’s my way of thanking the community for all the contributions from which I’ve learned so much in my projects.
 
