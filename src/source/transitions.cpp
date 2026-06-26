@@ -1,5 +1,6 @@
 #include "transitions.hpp"
 #include "src/widgets/box.hpp"
+#include "editor-ui-helpers.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -123,12 +124,20 @@ void Transitions::buildShowTransition(Box *box)
     btnCopy->setFixedSize(26, 26);
     btnCopy->setObjectName("copyButton");
     btnCopy->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        btnCopy,
+        editorui::GetIconPath("Copy.svg").c_str()
+    );
 
     /* BOTÓN PEGAR */
     btnPaste = new QPushButton(lineShow);
     btnPaste->setFixedSize(26, 26);
     btnPaste->setObjectName("pasteButton");
     btnPaste->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        btnPaste,
+        editorui::GetIconPath("Paste.svg").c_str()
+    );
 
     /* Añadir widgets a la línea */
     hLineShow->addWidget(showLabel);
@@ -280,14 +289,20 @@ void Transitions::buildHideTransition(Box *box)
     btnCopyHide->setFixedSize(26, 26);
     btnCopyHide->setObjectName("copyButton");
     btnCopyHide->setIconSize(QSize(18, 18));
-
+    editorui::SetButtonIcon(
+        btnCopyHide,
+        editorui::GetIconPath("Copy.svg").c_str()
+    );
 
     /* BOTÓN PEGAR */
     btnPasteHide = new QPushButton(lineHide);
     btnPasteHide->setFixedSize(26, 26);
     btnPasteHide->setObjectName("pasteButton");
     btnPasteHide->setIconSize(QSize(18, 18));
-
+    editorui::SetButtonIcon(
+        btnPasteHide,
+        editorui::GetIconPath("Paste.svg").c_str()
+    );
 
     /* Añadir widgets a la línea */
     hLineHide->addWidget(hideLabelTitle);

@@ -142,14 +142,11 @@ I designed and added icons for:
 - Flip vertical  
 - Rotate 90º right  
 - Rotate 90º left  
-- Rotate 180º  
-
----
+- Rotate 180º
+- Popout  
 
 ## ⚠️ WARNING ⚠️
-
-**⚠️⚠️⚠️⚠️All icons work perfectly in the Yami OBS theme.  
-If you use another theme, the icons will not be displayed.⚠️⚠️⚠️⚠️**
+*The new icons change color only when OBS is restarted.*
 
 ---
 
@@ -158,6 +155,3 @@ I must confess that I haven’t written a single line of code because I’m comp
 
 This plugin is and will always be FREE. It’s my way of thanking the community for all the contributions from which I’ve learned so much in my projects.
 
-**¡¡ARRIBA ESPAÑA!!**
-
-**¡¡VIVA CRISTO REY!!**

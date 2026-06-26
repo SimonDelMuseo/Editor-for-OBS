@@ -4,6 +4,7 @@
 #include "filters-proper-renderer.hpp"
 #include "filters-state.hpp"
 #include "src/widgets/box-filters.hpp"
+#include "editor-ui-helpers.hpp"
 
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -234,6 +235,10 @@ void FiltersRenderer::rebuildUI()
         btnReset->setProperty("class", "icon-reset");
         btnReset->setFixedSize(20, 20);
         btnReset->setIconSize(QSize(14, 14));
+        editorui::SetButtonIcon(
+            btnReset,
+            editorui::GetIconPath("Reset.svg").c_str()
+        );
         btnReset->setStyleSheet("background: transparent; border: none;");
 
         connect(btnReset, &QPushButton::clicked, this, [=]() {
@@ -278,6 +283,10 @@ void FiltersRenderer::rebuildUI()
         btnPopup->setFixedSize(20, 20);
         btnPopup->setObjectName("popoutButton");
         btnPopup->setIconSize(QSize(14, 14));
+        editorui::SetButtonIcon(
+            btnPopup,
+            editorui::GetIconPath("Popout.svg").c_str()
+        );
         btnPopup->setStyleSheet("QPushButton { background: transparent; padding: 0; border: none; }");
 
         connect(btnPopup, &QPushButton::clicked, this, [=]() {

@@ -1,4 +1,5 @@
 #include "filters-header.hpp"
+#include "editor-ui-helpers.hpp"
 
 #include <QHBoxLayout>
 #include <QCheckBox>
@@ -104,6 +105,10 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     btnCopy->setProperty("class", "icon-copy");
     btnCopy->setFixedSize(26, 26);
     btnCopy->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        btnCopy,
+        editorui::GetIconPath("Copy.svg").c_str()
+    );
     mainLayout->addWidget(btnCopy);
 
     // Pegar (icono OBS)
@@ -111,6 +116,10 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     btnPaste->setProperty("class", "icon-paste");
     btnPaste->setFixedSize(26, 26);
     btnPaste->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        btnPaste,
+        editorui::GetIconPath("Paste.svg").c_str()
+    );
     mainLayout->addWidget(btnPaste);
 
     // ============================================================
@@ -132,6 +141,10 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     btnPopoutAll->setFixedSize(20, 20);
     btnPopoutAll->setObjectName("popoutButton");
     btnPopoutAll->setIconSize(QSize(14, 14));
+    editorui::SetButtonIcon(
+        btnPopoutAll,
+        editorui::GetIconPath("Popout.svg").c_str()
+    );
     btnPopoutAll->setStyleSheet(
         "QPushButton { background: transparent; padding: 0; border: none; }"
     );

@@ -65,6 +65,9 @@ add_library(E33-Editor SHARED
     editor-model.cpp
     editor-model.hpp
 
+    editor-ui-helpers.cpp
+    editor-ui-helpers.hpp
+
     # SOURCE TAB
     src/source/source-tab.cpp
     src/source/source-tab.hpp

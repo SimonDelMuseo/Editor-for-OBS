@@ -1,5 +1,6 @@
 #include "quick.hpp"
 #include "src/widgets/box.hpp"
+#include "editor-ui-helpers.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -25,6 +26,10 @@ QuickBox::QuickBox(QWidget *parent)
     btnFlipH->setIconSize(QSize(18, 18));
     btnFlipH->setText(obs_module_text("FlipHorizontal"));
     btnFlipH->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    editorui::SetButtonIcon(
+        btnFlipH,
+        editorui::GetIconPath("Flip-horizontal.svg").c_str()
+    );
 
     auto *btnFlipV = new QPushButton(box);
     btnFlipV->setObjectName("flipVerticalButton");
@@ -32,6 +37,10 @@ QuickBox::QuickBox(QWidget *parent)
     btnFlipV->setIconSize(QSize(18, 18));
     btnFlipV->setText(obs_module_text("FlipVertical"));
     btnFlipV->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    editorui::SetButtonIcon(
+        btnFlipV,
+        editorui::GetIconPath("Flip-vertical.svg").c_str()
+    );
 
     line1->addStretch();
     line1->addWidget(btnFlipH);
@@ -58,6 +67,10 @@ QuickBox::QuickBox(QWidget *parent)
     btnRotCW->setIconSize(QSize(18, 18));
     btnRotCW->setText(obs_module_text("Rotate90CW"));
     btnRotCW->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    editorui::SetButtonIcon(
+        btnRotCW,
+        editorui::GetIconPath("Rotate90-right.svg").c_str()
+    );
 
     auto *btnRotCCW = new QPushButton(box);
     btnRotCCW->setObjectName("rotate90LeftButton");
@@ -65,6 +78,10 @@ QuickBox::QuickBox(QWidget *parent)
     btnRotCCW->setIconSize(QSize(18, 18));
     btnRotCCW->setText(obs_module_text("Rotate90CCW"));
     btnRotCCW->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    editorui::SetButtonIcon(
+        btnRotCCW,
+        editorui::GetIconPath("Rotate90-left.svg").c_str()
+    );
 
     auto *btnRot180 = new QPushButton(box);
     btnRot180->setObjectName("rotate180Button");
@@ -72,6 +89,10 @@ QuickBox::QuickBox(QWidget *parent)
     btnRot180->setIconSize(QSize(18, 18));
     btnRot180->setText(obs_module_text("Rotate180"));
     btnRot180->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    editorui::SetButtonIcon(
+        btnRot180,
+        editorui::GetIconPath("Rotate180.svg").c_str()
+    );
 
     line3->addWidget(btnRotCW);
     line3->addWidget(btnRotCCW);

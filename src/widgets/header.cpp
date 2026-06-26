@@ -1,5 +1,6 @@
 #include "header.hpp"
 #include "editor-model.hpp"
+#include "editor-ui-helpers.hpp"
 
 #include <QComboBox>
 #include <QLineEdit>
@@ -137,13 +138,17 @@ Header::Header(EditorModel *model, QWidget *parent)
     sourceTransformPanelBtn->setFixedSize(26, 26);
     sourceTransformPanelBtn->setObjectName("transformButton");
     sourceTransformPanelBtn->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        sourceTransformPanelBtn,
+        editorui::GetIconPath("Transform.svg").c_str()
+    );
 
     sourceFiltersPanelBtn = new QPushButton(this);
     sourceFiltersPanelBtn->setFlat(true);
     sourceFiltersPanelBtn->setFixedSize(26, 26);
     sourceFiltersPanelBtn->setObjectName("sourceFiltersButton");
     sourceFiltersPanelBtn->setIconSize(QSize(18, 18));
-
+    
     sourceRow->addWidget(sourceIconBtn);
     sourceRow->addWidget(sourceCombo);
     sourceRow->addWidget(sourcePropertiesPanelBtn);

@@ -1,6 +1,7 @@
 #include "copy-paste.hpp"
 #include "src/widgets/box.hpp"
 #include "editor-model.hpp"
+#include "editor-ui-helpers.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -33,21 +34,30 @@ CopyPaste::CopyPaste(QWidget *parent)
     btnCopy->setObjectName("copyButton");
     btnCopy->setIconSize(QSize(18, 18));
     btnCopy->setText(obs_module_text("Copy"));
-    //btnCopy->setStyleSheet("QPushButton { padding: 2 10px; text-align: center; }");
+    editorui::SetButtonIcon(
+        btnCopy,
+        editorui::GetIconPath("Copy.svg").c_str()
+    );
 
     btnPasteRef = new QPushButton(box);
     btnPasteRef->setFixedHeight(26);
     btnPasteRef->setObjectName("pasteButton");
     btnPasteRef->setIconSize(QSize(18, 18));
     btnPasteRef->setText(obs_module_text("PasteReference"));
-    //btnPasteRef->setStyleSheet("QPushButton { padding: 2 10px; text-align: center; }");
+    editorui::SetButtonIcon(
+        btnPasteRef,
+        editorui::GetIconPath("Paste.svg").c_str()
+    );
 
     btnPasteDup = new QPushButton(box);
     btnPasteDup->setFixedHeight(26);  
     btnPasteDup->setObjectName("pasteButton");
     btnPasteDup->setIconSize(QSize(18, 18));
     btnPasteDup->setText(obs_module_text("PasteDuplicate"));
-    //btnPasteDup->setStyleSheet("QPushButton { padding: 2 10px; text-align: center; }");
+    editorui::SetButtonIcon(
+        btnPasteDup,
+        editorui::GetIconPath("Paste.svg").c_str()
+    );
 
     layout->addStretch();
     layout->addWidget(btnCopy);
