@@ -84,6 +84,10 @@ Header::Header(EditorModel *model, QWidget *parent)
     sceneFilterPanelBtn->setFixedSize(26, 26);
     sceneFilterPanelBtn->setObjectName("sourceFiltersButton");
     sceneFilterPanelBtn->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        sceneFilterPanelBtn,
+        editorui::GetIconPath("Filter.svg").c_str()
+    );
 
     sceneRow->addWidget(sceneIconBtn);
     sceneRow->addWidget(sceneCombo);
@@ -132,6 +136,10 @@ Header::Header(EditorModel *model, QWidget *parent)
     sourcePropertiesPanelBtn->setFixedSize(26, 26);
     sourcePropertiesPanelBtn->setObjectName("sourcePropertiesButton");
     sourcePropertiesPanelBtn->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        sourcePropertiesPanelBtn,
+        editorui::GetIconPath("Properties.svg").c_str()
+    );
 
     sourceTransformPanelBtn = new QPushButton(this);
     sourceTransformPanelBtn->setFlat(true);
@@ -148,6 +156,10 @@ Header::Header(EditorModel *model, QWidget *parent)
     sourceFiltersPanelBtn->setFixedSize(26, 26);
     sourceFiltersPanelBtn->setObjectName("sourceFiltersButton");
     sourceFiltersPanelBtn->setIconSize(QSize(18, 18));
+    editorui::SetButtonIcon(
+        sourceFiltersPanelBtn,
+        editorui::GetIconPath("Filter.svg").c_str()
+    );
     
     sourceRow->addWidget(sourceIconBtn);
     sourceRow->addWidget(sourceCombo);

@@ -1,8 +1,11 @@
 #include "editor-ui-helpers.hpp"
 
 #include <obs-frontend-api.h>
+#include <obs-module.h>
+
 #include <QIcon>
 #include <QString>
+#include <QDir>
 
 namespace editorui {
 
@@ -20,15 +23,28 @@ void SetButtonIcon(QAbstractButton *button, const char *path)
 
 std::string GetIconPath(const std::string &iconName)
 {
-    // Ruta base de tus iconos (ajustada a tu estructura real)
-    static const std::string basePath =
-        "E:/OBS-PLUGIN/E33-Editor/data/obs-plugins/E33-Editor/icons/";
+    // Ruta absoluta al archivo del módulo (DLL del plugin)
+    char *modulePath = obs_module_file(nullptr);
 
-    // Tema actual
-    std::string theme = GetThemeTypeName(); // "Dark" o "Light"
+    // Convertimos a QString para manipular rutas
+    QString base = QString::fromUtf8(modulePath);
+    bfree(modulePath);
 
-    // Ejemplo final:  E:/.../icons/DarkCopy.svg
-    return basePath + theme + iconName;
+    // Subimos un nivel: /obs-plugins/64bit/E33-Editor.dll → /obs-plugins/64bit/
+    QDir dir(base);
+    dir.cdUp();
+
+    // Ahora bajamos a la carpeta data del plugin:
+    // <OBS>/data/obs-plugins/E33-Editor/icons/
+    dir.cd("../../data/obs-plugins/E33-Editor/icons/");
+
+    // Tema actual ("Dark" o "Light")
+    std::string theme = GetThemeTypeName();
+
+    // Construcción final: DarkTransform.svg, LightTransform.svg, etc.
+    QString fullPath = dir.filePath(QString::fromStdString(theme + iconName));
+
+    return fullPath.toStdString();
 }
 
 } // namespace editorui

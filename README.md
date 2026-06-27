@@ -151,3 +151,8 @@ I designed and added icons for:
 ## 📜 PERSONAL NOTE
 This plugin is and will always be FREE. It’s my way of thanking the community for all the contributions from which I’ve learned so much in my projects.
 
+
+
+**¡¡ARRIBA ESPAÑA Y LA HISPANIDAD!!**
+
+**¡¡VIVA CRISTO REY!!**
