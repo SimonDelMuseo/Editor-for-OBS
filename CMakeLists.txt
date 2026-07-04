@@ -152,6 +152,9 @@ add_library(E33-Editor SHARED
     src/scene-filters/scene-filters-tab.hpp
 
     # Contenido FILTERS TABS
+    src/filters-files/filters-copy-paste.cpp
+    src/filters-files/filters-copy-paste.hpp
+    
     src/filters-files/filters-model.cpp
     src/filters-files/filters-model.hpp
 
@@ -166,11 +169,7 @@ add_library(E33-Editor SHARED
 
     src/filters-files/filters-window.cpp
     src/filters-files/filters-window.hpp
-
-    # MISC TAB
-    src/misc/misc-tab.cpp
-    src/misc/misc-tab.hpp
-
+    
     # WIDGETS
     src/widgets/alignment-grid.cpp
     src/widgets/alignment-grid.hpp

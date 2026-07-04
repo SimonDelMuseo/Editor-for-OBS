@@ -16,7 +16,8 @@ class FiltersTab : public QWidget
     Q_OBJECT
 
 public:
-    explicit FiltersTab(EditorModel *model, QWidget *parent = nullptr);
+    explicit FiltersTab(EditorModel *model,
+                        QWidget *parent = nullptr);
 
 private slots:
     void refreshUI();

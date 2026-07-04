@@ -1,3 +1,4 @@
+#include "filters-copy-paste.hpp"
 #include "filters-renderer.hpp"
 #include "filters-model.hpp"
 #include "filters-window.hpp"
@@ -538,7 +539,7 @@ void FiltersRenderer::copyFromHeader()
         count = (int)checks.size();
 
     // 🔥 NUEVO: limpiar buffer antes de copiar
-    model->clearCopiedFilters();
+    clearCopiedFilters();
 
     // 🔥 NUEVO: copiar TODOS los seleccionados
     for (int i = 0; i < count; ++i) {

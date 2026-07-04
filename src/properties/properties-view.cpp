@@ -2081,8 +2081,28 @@ void WidgetInfo::ControlChanged()
         if (!PathChanged(setting))
             return;
         break;
-    case OBS_PROPERTY_EDITABLE_LIST:
+
+    /* 🔥 VLC PLAYLIST: aplicar cambios inmediatamente */
+    case OBS_PROPERTY_EDITABLE_LIST: {
+        // ya se actualizó view->settings internamente
+        OBSObject strongObj = view->GetObject();
+        void *obj = strongObj ? strongObj.Get() : view->rawObj;
+
+        if (obj) {
+            obs_source_t *src = (obs_source_t *)obj;
+
+            // aplicar settings nuevos
+            obs_source_update(src, view->settings);
+
+            // reiniciar VLC
+            const char *id = obs_source_get_unversioned_id(src);
+            if (id && strcmp(id, "vlc_source") == 0) {
+                obs_source_media_restart(src);
+            }
+        }
         break;
+    }
+
     case OBS_PROPERTY_FRAME_RATE:
         if (!FrameRateChanged(widget, setting, view->settings))
             return;
@@ -2094,6 +2114,27 @@ void WidgetInfo::ControlChanged()
         if (!ColorAlphaChanged(setting))
             return;
         break;
+    }
+
+    /* 🔥 PATH MULTIMEDIA: aplicar al instante */
+    if (type == OBS_PROPERTY_PATH) {
+        OBSObject strongObj = view->GetObject();
+        void *obj = strongObj ? strongObj.Get() : view->rawObj;
+
+        if (obj) {
+            obs_source_t *src = (obs_source_t *)obj;
+
+            obs_source_update(src, view->settings);
+
+            const char *id = obs_source_get_unversioned_id(src);
+            if (id && (
+                strcmp(id, "ffmpeg_source") == 0 ||
+                strcmp(id, "vlc_source") == 0 ||
+                strcmp(id, "slideshow") == 0)) {
+
+                obs_source_media_restart(src);
+            }
+        }
     }
 
     if (!recently_updated) {
@@ -2115,11 +2156,8 @@ void WidgetInfo::ControlChanged()
     if (update_timer) {
         update_timer->stop();
         update_timer->start(500);
-    } else {
-        blog(LOG_DEBUG, "No update timer or no callback!");
     }
 
-    // 🔥 AÑADIDO: aplicar cambios en tiempo real si no hay defer
     if (!view->DeferUpdate())
         view->UpdateSettings();
 
@@ -2137,7 +2175,6 @@ void WidgetInfo::ControlChanged()
         QMetaObject::invokeMethod(view, "RefreshProperties", Qt::QueuedConnection);
     }
 }
-
 
 class EditableItemDialog : public QDialog {
 	QLineEdit *edit;

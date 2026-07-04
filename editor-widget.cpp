@@ -11,7 +11,6 @@
 #include "src/filters/filters-tab.hpp"
 #include "src/scene-filters/scene-filters-tab.hpp"
 #include "src/transform/transform-tab.hpp"
-#include "src/misc/misc-tab.hpp"
 
 #include <QVBoxLayout>
 #include <QTabWidget>
@@ -31,8 +30,7 @@ EditorWidget::EditorWidget(EditorModel *model, QWidget *parent)
     tabs->addTab(new FiltersTab(model, this),      obs_module_text("FiltersTab"));
     tabs->addTab(new SceneFiltersTab(model, this), obs_module_text("SceneFiltersTab"));
     tabs->addTab(new TransformTab(model, this),    obs_module_text("TransformTab"));
-    tabs->addTab(new MiscTab(model, this),         obs_module_text("MiscTab"));
-
+    
     /* ============================================================
        OCULTAR LAS PESTAÑAS (solo la barra, NO el contenido)
        ============================================================ */
@@ -95,16 +93,6 @@ void EditorWidget::showTransformTab()
 {
     if (tabs)
         tabs->setCurrentIndex(4);
-}
-
-/* ────────────────────────────────────────────────
-   NUEVO — CAMBIAR A LA TAB DE MISC
-   (índice 5 en el QTabWidget)
-   ──────────────────────────────────────────────── */
-void EditorWidget::showMiscTab()
-{
-    if (tabs)
-        tabs->setCurrentIndex(5);
 }
 
 /* ────────────────────────────────────────────────

@@ -48,6 +48,17 @@ SceneFiltersTab::SceneFiltersTab(EditorModel *model, QWidget *parent)
     connect(filtersRenderer, &FiltersRenderer::moveFilterDownRequested,
             filtersModel,    &FiltersModel::moveFilterDown);
 
+            /* 🔥 NUEVO: CONEXIONES COPIAR / PEGAR */
+    connect(filtersRenderer, &FiltersRenderer::copyRequested,
+            filtersModel,    [this](int index) {
+                filtersModel->copyFilter(index);
+            });
+
+    connect(filtersRenderer, &FiltersRenderer::pasteRequested,
+            filtersModel,    [this](int index) {
+                filtersModel->pasteFilter(index);
+            });
+            
     /* LISTA DE FILTROS */
     formLayout->addRow(filtersRenderer);
 
