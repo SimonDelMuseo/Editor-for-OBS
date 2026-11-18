@@ -11,23 +11,25 @@
 EditBox::EditBox(QWidget *parent)
     : QWidget(parent)
 {
-    auto *box = new Box(this);
+    auto *boxTransform = new Box(this);
+    auto *boxBounds    = new Box(this);
+    auto *boxCrop      = new Box(this);
 
-    /* Crear subwidgets */
-    positionBox = new EditPosition(box);
-    boundsBox   = new EditBounds(box);
-    cropBox     = new EditCrop(box);
+    positionBox = new EditPosition(this);
+    boundsBox   = new EditBounds(this);
+    cropBox     = new EditCrop(this);
 
-    /* Layout interno del Box */
-    auto *inner = qobject_cast<QVBoxLayout*>(box->layout());
-    if (inner) {
-        inner->addWidget(positionBox);
-        inner->addWidget(boundsBox);
-        inner->addWidget(cropBox);
-    }
+    auto put = [](Box *box, QWidget *w) {
+        if (auto *inner = qobject_cast<QVBoxLayout *>(box->layout()))
+            inner->addWidget(w);
+    };
+    put(boxTransform, positionBox);
+    put(boxBounds,    boundsBox);
+    put(boxCrop,      cropBox);
 
-    /* Layout principal */
     auto *main = new QVBoxLayout(this);
     main->setContentsMargins(0, 0, 0, 0);
-    main->addWidget(box);
+    main->addWidget(boxTransform);
+    main->addWidget(boxBounds);
+    main->addWidget(boxCrop);
 }

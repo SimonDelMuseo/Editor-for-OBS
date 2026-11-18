@@ -8,116 +8,105 @@
 #include <QLabel>
 #include <obs-module.h>
 
+static QLabel *makeSubtitleLabel(const char *key, QWidget *parent)
+{
+    auto *lbl = new QLabel(obs_module_text(key), parent);
+    lbl->setProperty("class", "subtitle");
+    return lbl;
+}
+
 QuickBox::QuickBox(QWidget *parent)
     : QWidget(parent)
 {
     auto *box = new Box(this);
 
-    /* ============================================================
-       LÍNEA 1 — FLIPS
-       ============================================================ */
-    auto *line1 = new QHBoxLayout();
-    line1->setContentsMargins(0, 0, 0, 0);
-    line1->setSpacing(10);
+    auto *line = new QHBoxLayout();
+    line->setContentsMargins(0, 0, 0, 0);
+    line->setSpacing(8);
 
-    auto *btnFlipH = new QPushButton(box);
-    btnFlipH->setObjectName("flipHorizontalButton");
-    btnFlipH->setFixedHeight(28);
-    btnFlipH->setIconSize(QSize(18, 18));
-    btnFlipH->setText(obs_module_text("FlipHorizontal"));
-    btnFlipH->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    editorui::SetButtonIcon(
-        btnFlipH,
-        editorui::GetIconPath("Flip-horizontal.svg").c_str()
-    );
-
-    auto *btnFlipV = new QPushButton(box);
-    btnFlipV->setObjectName("flipVerticalButton");
-    btnFlipV->setFixedHeight(28);
-    btnFlipV->setIconSize(QSize(18, 18));
-    btnFlipV->setText(obs_module_text("FlipVertical"));
-    btnFlipV->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    editorui::SetButtonIcon(
-        btnFlipV,
-        editorui::GetIconPath("Flip-vertical.svg").c_str()
-    );
-
-    line1->addStretch();
-    line1->addWidget(btnFlipH);
-    line1->addWidget(btnFlipV);
-    line1->addStretch();
-
-    /* ============================================================
-       LÍNEA 2 — TÍTULO
-       ============================================================ */
-    auto *title = new QLabel(obs_module_text("RotateTitle"), box);
-    title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet("font-weight: bold;");
-
-    /* ============================================================
-       LÍNEA 3 — ROTACIONES
-       ============================================================ */
-    auto *line3 = new QHBoxLayout();
-    line3->setContentsMargins(0, 0, 0, 0);
-    line3->setSpacing(10);
+    line->addWidget(makeSubtitleLabel("RotateTitle", box));
 
     auto *btnRotCW = new QPushButton(box);
     btnRotCW->setObjectName("rotate90RightButton");
     btnRotCW->setFixedHeight(28);
     btnRotCW->setIconSize(QSize(18, 18));
     btnRotCW->setText(obs_module_text("Rotate90CW"));
+    btnRotCW->setToolTip(obs_module_text("Rotate90CWTip"));
     btnRotCW->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     editorui::SetButtonIcon(
         btnRotCW,
         editorui::GetIconPath("Rotate90-right.svg").c_str()
     );
+    line->addWidget(btnRotCW);
 
     auto *btnRotCCW = new QPushButton(box);
     btnRotCCW->setObjectName("rotate90LeftButton");
     btnRotCCW->setFixedHeight(28);
     btnRotCCW->setIconSize(QSize(18, 18));
     btnRotCCW->setText(obs_module_text("Rotate90CCW"));
+    btnRotCCW->setToolTip(obs_module_text("Rotate90CCWTip"));
     btnRotCCW->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     editorui::SetButtonIcon(
         btnRotCCW,
         editorui::GetIconPath("Rotate90-left.svg").c_str()
     );
+    line->addWidget(btnRotCCW);
 
     auto *btnRot180 = new QPushButton(box);
     btnRot180->setObjectName("rotate180Button");
     btnRot180->setFixedHeight(28);
     btnRot180->setIconSize(QSize(18, 18));
     btnRot180->setText(obs_module_text("Rotate180"));
+    btnRot180->setToolTip(obs_module_text("Rotate180Tip"));
     btnRot180->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     editorui::SetButtonIcon(
         btnRot180,
         editorui::GetIconPath("Rotate180.svg").c_str()
     );
+    line->addWidget(btnRot180);
 
-    line3->addWidget(btnRotCW);
-    line3->addWidget(btnRotCCW);
-    line3->addWidget(btnRot180);
+    line->addSpacing(8);
 
-    /* ============================================================
-       INSERTAR TODO EN EL BOX
-       ============================================================ */
+    line->addWidget(makeSubtitleLabel("FlipTitle", box));
+
+    auto *btnFlipH = new QPushButton(box);
+    btnFlipH->setObjectName("flipHorizontalButton");
+    btnFlipH->setIconSize(QSize(18, 18));
+    btnFlipH->setToolTip(obs_module_text("FlipHorizontal"));
+    btnFlipH->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    btnFlipH->setFixedSize(28, 28);
+    btnFlipH->setStyleSheet(QStringLiteral(
+        "#flipHorizontalButton { height: 28px; max-height: 28px;"
+        " min-height: 28px; margin: 0px; padding: 0px; }"));
+    editorui::SetButtonIcon(
+        btnFlipH,
+        editorui::GetIconPath("Flip-horizontal.svg").c_str()
+    );
+    line->addWidget(btnFlipH);
+
+    auto *btnFlipV = new QPushButton(box);
+    btnFlipV->setObjectName("flipVerticalButton");
+    btnFlipV->setIconSize(QSize(18, 18));
+    btnFlipV->setToolTip(obs_module_text("FlipVertical"));
+    btnFlipV->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    btnFlipV->setFixedSize(28, 28);
+    btnFlipV->setStyleSheet(QStringLiteral(
+        "#flipVerticalButton { height: 28px; max-height: 28px;"
+        " min-height: 28px; margin: 0px; padding: 0px; }"));
+    editorui::SetButtonIcon(
+        btnFlipV,
+        editorui::GetIconPath("Flip-vertical.svg").c_str()
+    );
+    line->addWidget(btnFlipV);
+
     auto *inner = qobject_cast<QVBoxLayout*>(box->layout());
-    if (inner) {
-        inner->addLayout(line1);
-        inner->addWidget(title);
-        inner->addLayout(line3);
-    }
+    if (inner)
+        inner->addLayout(line);
 
-    /* ============================================================
-       LAYOUT PRINCIPAL
-       ============================================================ */
     auto *main = new QVBoxLayout(this);
     main->setContentsMargins(0, 0, 0, 0);
     main->addWidget(box);
 
-    /* ============================================================
-       CONEXIONES → SEÑALES
-       ============================================================ */
     connect(btnFlipH, &QPushButton::clicked, this, &QuickBox::flipHorizontal);
     connect(btnFlipV, &QPushButton::clicked, this, &QuickBox::flipVertical);
 

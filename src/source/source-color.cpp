@@ -8,9 +8,6 @@
 
 #include <obs-module.h>
 
-/* ────────────────────────────────────────────────
-   CONSTRUCTOR
-   ──────────────────────────────────────────────── */
 SourceColor::SourceColor(QWidget *parent)
     : QWidget(parent)
 {
@@ -21,21 +18,19 @@ SourceColor::SourceColor(QWidget *parent)
     layout->setSpacing(6);
     layout->addStretch();
 
-    /* Colores CSS de OBS */
         static const char *presetColors[8] = {
-        "rgba(255,0,0,0.33)",     // rojo
-        "rgba(255,255,0,0.33)",   // amarillo
-        "rgba(0,255,0,0.33)",     // verde
-        "rgba(0,255,255,0.33)",   // cian
-        "rgba(0,0,255,0.33)",     // azul
-        "rgba(255,0,255,0.33)",   // magenta
-        "rgba(0,0,0,0.33)"        // negro
-        "rgba(255,255,255,0.33)", // gris
+        "rgba(255,0,0,0.33)",
+        "rgba(255,255,0,0.33)",
+        "rgba(0,255,0,0.33)",
+        "rgba(0,255,255,0.33)",
+        "rgba(0,0,255,0.33)",
+        "rgba(255,0,255,0.33)",
+        "rgba(0,0,0,0.33)"
+        "rgba(255,255,255,0.33)",
         
     };
 
 
-    /* Crear botones de presets */
     for (int i = 0; i < 8; i++) {
         QPushButton *btn = new QPushButton(box);
         colorButtons[i] = btn;
@@ -51,13 +46,11 @@ SourceColor::SourceColor(QWidget *parent)
 
         layout->addWidget(btn);
 
-        /* Emitir presetSelected(i+1) */
         connect(btn, &QPushButton::clicked, this, [this, i]() {
             emit presetSelected(i + 1);
         });
     }
 
-    /* Botón Custom Color */
     buttonSelect = new QPushButton(obs_module_text("CustomColor"), box);
     buttonSelect->setFixedHeight(26);
     layout->addWidget(buttonSelect);
@@ -65,13 +58,12 @@ SourceColor::SourceColor(QWidget *parent)
         emit colorRequested();
     });
 
-    /* Botón borrar color */
     buttonTrash = new QPushButton(box);
     buttonTrash->setFixedSize(26, 26);
     buttonTrash->setProperty("class", "icon-trash");
     layout->addWidget(buttonTrash);
     connect(buttonTrash, &QPushButton::clicked, this, [this]() {
-        emit presetSelected(0);   // ← borrar color
+        emit presetSelected(0);
     });
 
     layout->addStretch();
@@ -88,9 +80,6 @@ SourceColor::SourceColor(QWidget *parent)
     updatePresetButtonsVisual();
 }
 
-/* ────────────────────────────────────────────────
-   ACTUALIZAR VISUAL
-   ──────────────────────────────────────────────── */
 void SourceColor::updatePresetButtonsVisual()
 {
     for (int i = 0; i < 8; i++) {
@@ -99,17 +88,20 @@ void SourceColor::updatePresetButtonsVisual()
             continue;
 
         if (activePresetIndex == i + 1)
-            btn->setFixedSize(22, 22);  // activo
+            btn->setFixedSize(22, 22);
         else
-            btn->setFixedSize(26, 26);  // normal
+            btn->setFixedSize(26, 26);
     }
 }
 
-/* ────────────────────────────────────────────────
-   SINCRONIZAR PRESET ACTUAL
-   ──────────────────────────────────────────────── */
 void SourceColor::setCurrentPreset(int presetIndex)
 {
-    activePresetIndex = presetIndex;  // 0..8
+    activePresetIndex = presetIndex;
     updatePresetButtonsVisual();
+}
+
+void SourceColor::setTrashEnabled(bool on)
+{
+    if (buttonTrash)
+        buttonTrash->setEnabled(on);
 }

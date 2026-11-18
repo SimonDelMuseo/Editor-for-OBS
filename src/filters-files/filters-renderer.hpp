@@ -5,10 +5,12 @@
 
 #include <QWidget>
 #include <QLineEdit>
+#include <QVector>
 
 class QVBoxLayout;
 class FiltersModel;
 class FiltersState;
+class QPropertyAnimation;
 
 class FilterNameEdit : public QLineEdit {
     Q_OBJECT
@@ -39,6 +41,8 @@ public:
     void setAllSelected(bool selected);
     void popoutAll();
 
+    void markExpanded(const QString &name);
+
     FiltersModel* getModel() const { return model; }
 
     enum class FilterCategory { Effect, Audio };
@@ -58,12 +62,12 @@ signals:
     void openExternalWindow(int index);
     void resetFilterRequested(int index);
 
-    // 🔥 NUEVA SEÑAL: cada vez que se crea un popout
     void popoutCreated(QWidget *w);
 
-    // 🔥 NUEVAS SEÑALES PARA COPIAR / PEGAR
     void copyRequested(int index);
     void pasteRequested(int index);
+
+    void selectionStateChanged();
 
 private:
     FiltersModel *model = nullptr;
@@ -79,5 +83,15 @@ private:
     void rebuildUI();
     bool eventFilter(QObject *obj, QEvent *event) override;
 
+    void onFilterVisibilityChanged(obs_source_t *filter, bool enabled);
+    void onFilterRenamed(obs_source_t *filter, const QString &oldName);
+    QWidget *rowForFilter(obs_source_t *filter) const;
+
     void refreshExpandedFilters();
+
+    void animateRowEntrance(QWidget *row, int delay);
+
+    QVector<QString> lastRenderedNames;
+    FilterCategory lastRenderedCategory = FilterCategory::Effect;
+    bool renderedOnce = false;
 };

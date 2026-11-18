@@ -13,20 +13,18 @@
 #include <obs-module.h>
 #include <obs.h>
 #include <obs-source.h>
+#include <obs-frontend-api.h>
 
-/* ────────────────────────────────────────────────
-   AUDIO SETTINGS — UI ELEMENTS (4 LÍNEAS)
-   ──────────────────────────────────────────────── */
+#include "editor-ui-helpers.hpp"
+
+#include <cstring>
+
 AudioSettings::AudioSettings(QWidget *parent)
     : Box(parent)
 {
     auto *layout = qobject_cast<QVBoxLayout *>(this->layout());
     layout->setSpacing(6);
 
-    /* ────────────────────────────────────────────────
-       LÍNEA 1:
-       Hide in Mixer + Sync Offset
-       ──────────────────────────────────────────────── */
     {
         auto *row = new QHBoxLayout();
         row->setSpacing(6);
@@ -38,31 +36,13 @@ AudioSettings::AudioSettings(QWidget *parent)
         hideInMixerButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         hideInMixerButton->setCheckable(true);
 
-        /* Desactivar interacción completamente */
         hideInMixerButton->setAttribute(Qt::WA_TransparentForMouseEvents);
         hideInMixerButton->setFocusPolicy(Qt::NoFocus);
         hideInMixerButton->setCursor(Qt::ArrowCursor);
 
-        /* Quitar hover y cualquier efecto visual */
-        hideInMixerButton->setStyleSheet(
-        "#HideInMixer {"
-        "   border: 1px solid #5A5A5A;"      /* borde gris medio */
-        "   padding: 3px 6px;"
-        "   color: white;"
-        "   background-color: #1e3a8a;"      /* Active por defecto */
-        "}"
-        "#HideInMixer:checked {"
-        "   background-color: #3d2380;"      /* Hidden */
-        "}"
-        "#HideInMixer:hover { background: transparent; }"
-    );
-
-
-        /* No debe emitir nada al hacer click */
         disconnect(hideInMixerButton, nullptr, nullptr, nullptr);
 
-        /* Texto inicial (se actualizará en loadFromSource) */
-        hideInMixerButton->setText(obs_module_text("VisibleInMixer"));
+        refreshMixerState(nullptr);
 
                 
         row->addWidget(hideInMixerButton);
@@ -88,10 +68,6 @@ AudioSettings::AudioSettings(QWidget *parent)
         layout->addLayout(row);
     }
 
-    /* ────────────────────────────────────────────────
-       LÍNEA 2:
-       Mono + Balance (L / slider / R)
-       ──────────────────────────────────────────────── */
     {
         auto *row = new QHBoxLayout();
         row->setSpacing(6);
@@ -129,7 +105,6 @@ AudioSettings::AudioSettings(QWidget *parent)
         balanceSlider->setSingleStep(1);
         balanceSlider->setPageStep(10);
 
-        /* PASO 1 — habilitar doble clic */
         balanceSlider->installEventFilter(this);
 
         row->addWidget(balanceSlider);
@@ -145,10 +120,6 @@ AudioSettings::AudioSettings(QWidget *parent)
         layout->addLayout(row);
     }
 
-    /* ────────────────────────────────────────────────
-       LÍNEA 3:
-       Audio Monitoring + ComboBox
-       ──────────────────────────────────────────────── */
     {
         auto *row = new QHBoxLayout();
         row->setSpacing(6);
@@ -162,22 +133,16 @@ AudioSettings::AudioSettings(QWidget *parent)
 
         row->addSpacing(4);
 
-        monitoringCombo = new QComboBox();
-        monitoringCombo->addItem(obs_module_text("MonitorOff"));
-        monitoringCombo->addItem(obs_module_text("MonitorOnlyMute"));
-        monitoringCombo->addItem(obs_module_text("MonitorAndOutput"));
-        monitoringCombo->setObjectName("AudioMonitoring");
-        row->addWidget(monitoringCombo);
+        monitorCheck = new QCheckBox();
+        monitorCheck->setText(obs_module_text("Enable"));
+        monitorCheck->setObjectName("AudioMonitoring");
+        row->addWidget(monitorCheck);
 
         row->addStretch();
 
         layout->addLayout(row);
     }
 
-    /* ────────────────────────────────────────────────
-       LÍNEA 4:
-       Tracks (6 checkboxes)
-       ──────────────────────────────────────────────── */
     {
         auto *row = new QHBoxLayout();
         row->setSpacing(6);
@@ -206,84 +171,174 @@ AudioSettings::AudioSettings(QWidget *parent)
         layout->addLayout(row);
     }
 
-    /* ────────────────────────────────────────────────
-       CONEXIONES
-       ──────────────────────────────────────────────── */
     connect(hideInMixerButton, &QPushButton::clicked,
-            this, [this]() { emit settingsChanged(); });
+            this, [this]() { emit settingsChanged("UndoAudioHidden"); });
 
     connect(syncOffsetSpin, qOverload<int>(&QSpinBox::valueChanged),
-            this, [this](int) { emit settingsChanged(); });
+            this, [this](int) { emit settingsChanged("UndoSyncOffset"); });
 
     connect(monoCheck, &QCheckBox::stateChanged,
-            this, [this](int) { emit settingsChanged(); });
+            this, [this](int) { emit settingsChanged("UndoMono"); });
 
     connect(balanceSlider, &QSlider::valueChanged,
-            this, [this](int) { emit settingsChanged(); });
+            this, [this](int) { emit settingsChanged("UndoBalance"); });
 
-    connect(monitoringCombo, qOverload<int>(&QComboBox::currentIndexChanged),
-            this, [this](int) { emit settingsChanged(); });
+    connect(monitorCheck, &QCheckBox::stateChanged,
+            this, [this](int) { emit settingsChanged("UndoMonitoring"); });
 
     for (auto *cb : trackChecks) {
         connect(cb, &QCheckBox::stateChanged,
-                this, [this](int) { emit settingsChanged(); });
+                this, [this](int) { emit settingsChanged("UndoTracks"); });
     }
 }
 
-/* ────────────────────────────────────────────────
-   CARGAR DESDE OBS
-   ──────────────────────────────────────────────── */
+
+static bool e33_is_source_in_preview(obs_source_t *src)
+{
+    if (!obs_frontend_preview_program_mode_active())
+        return false;
+
+    const char *uuid = obs_source_get_uuid(src);
+    if (!uuid || !*uuid)
+        return false;
+
+    obs_source_t *previewSrc = obs_frontend_get_current_preview_scene();
+    if (!previewSrc)
+        return false;
+
+    struct Search { const char *uuid; bool found; } search{uuid, false};
+
+    auto enumItem = [](obs_scene_t *, obs_sceneitem_t *item,
+                       void *param) -> bool {
+        auto *s = static_cast<Search *>(param);
+        if (!obs_sceneitem_visible(item))
+            return true;
+        obs_source_t *is = obs_sceneitem_get_source(item);
+        if (!is)
+            return true;
+        if (!(obs_source_get_output_flags(is) & OBS_SOURCE_AUDIO))
+            return true;
+        if (!obs_source_audio_active(is))
+            return true;
+        const char *iu = obs_source_get_uuid(is);
+        if (iu && *iu && strcmp(iu, s->uuid) == 0) {
+            s->found = true;
+            return false;
+        }
+        return true;
+    };
+
+    obs_scene_t *previewScene = obs_scene_from_source(previewSrc);
+    if (previewScene)
+        obs_scene_enum_items(previewScene, enumItem, &search);
+
+    obs_source_release(previewSrc);
+    return search.found;
+}
+
+void AudioSettings::refreshMixerState(obs_source_t *src)
+{
+    if (!hideInMixerButton)
+        return;
+
+    bool hidden = false, pinned = false, unassigned = false;
+    bool active = false, previewed = false;
+
+    if (src) {
+        obs_data_t *priv = obs_source_get_private_settings(src);
+        hidden = obs_data_get_bool(priv, "mixer_hidden");
+        pinned = obs_data_get_bool(priv, "mixer_pinned");
+        obs_data_release(priv);
+
+        unassigned = (obs_source_get_audio_mixers(src) & 0x3F) == 0;
+        active     = obs_source_active(src) && obs_source_audio_active(src);
+        previewed  = e33_is_source_in_preview(src);
+    }
+
+    const char *state = "MixerState.Active";
+    const char *cls   = "";
+
+    if (unassigned) {
+        state = "MixerState.Unassigned";
+        cls   = "volume-unassigned";
+    } else if (pinned) {
+        state = "MixerState.Pinned";
+        cls   = "volume-pinned";
+    } else if (hidden) {
+        state = "MixerState.Hidden";
+        cls   = "volume-hidden";
+    } else if (!active) {
+        if (previewed) {
+            state = "MixerState.Preview";
+            cls   = "volume-preview";
+        } else {
+            state = "MixerState.Inactive";
+            cls   = "volume-inactive";
+        }
+    }
+
+    hideInMixerButton->setText(obs_module_text(state));
+    hideInMixerButton->setChecked(hidden);
+
+    QColor bg, fg;
+    const editorui::MixerStateStyle th =
+        editorui::GetThemeMixerStateStyle(cls);
+    if (th.found) {
+        bg = th.bg;
+        fg = th.fg;
+    } else {
+        bg = QColor("#1e3a8a");
+        fg = QColor("#ffffff");
+        if (!strcmp(cls, "volume-hidden"))
+            bg = QColor("#3d2380");
+        else if (!strcmp(cls, "volume-inactive"))
+            bg = QColor("#2b2b2b");
+        else if (!strcmp(cls, "volume-preview"))
+            bg = QColor("#14532d");
+        else if (!strcmp(cls, "volume-unassigned"))
+            bg = QColor("#7c2d12");
+        else if (!strcmp(cls, "volume-pinned"))
+            bg = QColor("#1e40af");
+    }
+
+    hideInMixerButton->setStyleSheet(
+        QStringLiteral(
+            "#HideInMixer {"
+            "   border: 1px solid #5A5A5A;"
+            "   padding: 3px 6px;"
+            "   color: %1;"
+            "   background-color: %2;"
+            "}"
+            "#HideInMixer:hover { background: transparent; }")
+            .arg(fg.name(), bg.name()));
+}
+
 void AudioSettings::loadFromSource(obs_source_t *src)
 {
     if (!src)
         return;
 
-    /* HIDE IN MIXER */
-    {
-        obs_data_t *priv = obs_source_get_private_settings(src);
-        bool hidden = obs_data_get_bool(priv, "mixer_hidden");
-        obs_data_release(priv);
+    refreshMixerState(src);
 
-        hideInMixerButton->setChecked(hidden);
-
-        if (hidden)
-            hideInMixerButton->setText(obs_module_text("HiddenInMixer"));
-        else
-            hideInMixerButton->setText(obs_module_text("ActiveInMixer"));
-    }
-
-    /* SYNC OFFSET (ns → ms) */
     {
         int64_t ns = obs_source_get_sync_offset(src);
         syncOffsetSpin->setValue(int(ns / 1000000));
     }
 
-    /* MONO */
     {
         uint32_t flags = obs_source_get_flags(src);
         bool mono = (flags & OBS_SOURCE_FLAG_FORCE_MONO) != 0;
         monoCheck->setChecked(mono);
     }
 
-    /* BALANCE (-1.0 → 1.0) */
     {
         float bal = obs_source_get_balance_value(src);
-        /* 0..1  →  -100..100 */
         int uiBal = int((bal - 0.5f) * 200.0f);
         balanceSlider->setValue(uiBal);
     }
 
-    /* MONITORING */
-    {
-        int type = (int)obs_source_get_monitoring_type(src);
-        if (type < 0)
-            type = 0;
-        if (type > 2)
-            type = 0;
-        monitoringCombo->setCurrentIndex(type);
-    }
+    monitorCheck->setChecked(obs_source_get_monitoring_enabled(src));
 
-    /* TRACKS */
     {
         uint32_t mask = obs_source_get_audio_mixers(src);
         for (int i = 0; i < trackChecks.size(); i++) {
@@ -293,15 +348,11 @@ void AudioSettings::loadFromSource(obs_source_t *src)
     }
 }
 
-/* ────────────────────────────────────────────────
-   GUARDAR EN OBS
-   ──────────────────────────────────────────────── */
 void AudioSettings::saveToSource(obs_source_t *src)
 {
     if (!src)
         return;
 
-    /* HIDE IN MIXER */
     {
         bool hidden = hideInMixerButton->isChecked();
 
@@ -310,13 +361,11 @@ void AudioSettings::saveToSource(obs_source_t *src)
         obs_data_release(priv);
     }
 
-    /* SYNC OFFSET (ms → ns) */
     {
         int64_t ns = int64_t(syncOffsetSpin->value()) * 1000000;
         obs_source_set_sync_offset(src, ns);
     }
 
-    /* MONO */
     {
         uint32_t flags = obs_source_get_flags(src);
         bool mono = monoCheck->isChecked();
@@ -329,20 +378,13 @@ void AudioSettings::saveToSource(obs_source_t *src)
         obs_source_set_flags(src, flags);
     }
 
-    /* BALANCE */
     {
-        /* -100..100  →  0..1 */
         float bal = (float(balanceSlider->value()) / 200.0f) + 0.5f;
         obs_source_set_balance_value(src, bal);
     }
 
-    /* MONITORING */
-    {
-        int type = monitoringCombo->currentIndex();
-        obs_source_set_monitoring_type(src, (obs_monitoring_type)type);
-    }
+    obs_source_set_monitoring_enabled(src, monitorCheck->isChecked());
 
-    /* TRACKS */
     {
         uint32_t mask = 0;
         for (int i = 0; i < trackChecks.size(); i++) {
@@ -357,7 +399,7 @@ bool AudioSettings::eventFilter(QObject *obj, QEvent *event)
 {
     if (obj == balanceSlider && event->type() == QEvent::MouseButtonDblClick) {
         balanceSlider->setValue(0);
-        emit settingsChanged();
+        emit settingsChanged("UndoBalance");
         return true;
     }
 

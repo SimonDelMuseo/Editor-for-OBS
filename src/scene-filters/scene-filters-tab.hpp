@@ -29,5 +29,5 @@ private:
     FiltersState          *filtersState      = nullptr;
     FiltersProperRenderer *properRenderer    = nullptr;
 
-    obs_source_t *lastSource = nullptr;   // ← NECESARIO
+    obs_source_t *lastSource = nullptr;
 };

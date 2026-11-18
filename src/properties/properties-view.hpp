@@ -5,6 +5,7 @@
 #include <obs.hpp>
 #include <qtimer.h>
 #include <QPointer>
+#include <QList>
 #include <vector>
 #include <memory>
 
@@ -16,7 +17,6 @@ typedef obs_properties_t *(*PropertiesReloadCallback)(void *obj);
 typedef void (*PropertiesUpdateCallback)(void *obj, obs_data_t *old_settings, obs_data_t *new_settings);
 typedef void (*PropertiesVisualUpdateCb)(void *obj, obs_data_t *settings);
 
-/* ------------------------------------------------------------------------- */
 
 class WidgetInfo : public QObject {
 	Q_OBJECT
@@ -59,7 +59,6 @@ public:
 	{
 		if (update_timer) {
 			update_timer->stop();
-			QMetaObject::invokeMethod(update_timer, "timeout");
 			update_timer->deleteLater();
 		}
 	}
@@ -68,7 +67,6 @@ public slots:
 
 	void ControlChanged();
 
-	/* editable list */
 	void EditListAdd();
 	void EditListAddText();
 	void EditListAddFiles();
@@ -79,7 +77,6 @@ public slots:
 	void EditListDown();
 };
 
-/* ------------------------------------------------------------------------- */
 
 class OBSPropertiesView : public VScrollArea {
 	Q_OBJECT
@@ -106,6 +103,13 @@ private:
 	bool deferUpdate;
 	bool enableDefer = true;
 	bool disableScrolling = false;
+	bool refreshing = false;
+	bool pendingRefresh = false;
+	bool inModalDialog = false;
+	bool registeredInList = false;
+	obs_source_t *updateSignalSrc = nullptr;
+	static void UpdatePropertiesSignalCb(void *data, calldata_t *params);
+	void ConnectUpdatePropertiesSignal();
 
 	template<typename Sender, typename SenderParent, typename... Args>
 	QWidget *NewWidget(obs_property_t *prop, Sender *widget, void (SenderParent::*signal)(Args...));
@@ -136,6 +140,11 @@ private:
 private slots:
 	void RefreshProperties();
 
+private:
+	void RefreshPropertiesNow();
+	void FlushPendingRefresh();
+	void EnsureRegistered();
+
 public slots:
 	void ReloadProperties();
 	void SignalChanged();
@@ -146,6 +155,8 @@ signals:
 	void PropertiesRefreshed();
 
 public:
+	~OBSPropertiesView() override;
+
 	OBSPropertiesView(OBSData settings, obs_object_t *obj, PropertiesReloadCallback reloadCallback,
 			  PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr, int minSize = 0);
 	OBSPropertiesView(OBSData settings, void *obj, PropertiesReloadCallback reloadCallback,
@@ -195,12 +206,12 @@ public:
 		return obj.Get() == (obs_object_t *)type; \
 	}
 
-	/* clang-format off */
 	Def_IsObject(source)
 	Def_IsObject(output)
 	Def_IsObject(encoder)
 	Def_IsObject(service)
-	/* clang-format on */
 
 #undef Def_IsObject
 };
+
+QList<OBSPropertiesView *> AllPropertyViews();

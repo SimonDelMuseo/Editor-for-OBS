@@ -1,11 +1,13 @@
 #pragma once
 #include <QWidget>
+#include <QMap>
 
 class EditorModel;
 class CopyPasteBox;
 class QuickBox;
 class AlignmentBox;
 class EditBox;
+class QPropertyAnimation;
 
 class TransformTab : public QWidget
 {
@@ -19,9 +21,13 @@ private slots:
 private:
     EditorModel *model = nullptr;
 
-    /* Subcajas */
+    void setContainerVisible(QWidget *box, bool wantVisible);
+    void startBoxAnim(QWidget *box, int from, int to, bool hideAtEnd);
+
     CopyPasteBox   *copyPasteBox   = nullptr;
     QuickBox       *quickBox       = nullptr;
     AlignmentBox   *alignmentBox   = nullptr;
     EditBox        *editBox        = nullptr;
+
+    QMap<QWidget *, QPropertyAnimation *> boxAnims;
 };

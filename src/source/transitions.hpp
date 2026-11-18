@@ -26,19 +26,21 @@ private:
     void connectShowTransition();
     void connectHideTransition();
     void connectConfigButton();
-    void connectTimeControl();       // SHOW
-    void connectTimeControlHide();   // HIDE
+    void connectTimeControl();
+    void connectTimeControlHide();
+
+    void refreshControlStates();
 
     EditorModel *model = nullptr;
 
-    // SHOW
+    bool m_applyingTransition = false;
+
     QComboBox   *labelShow = nullptr;
     QSpinBox    *timeSpin = nullptr;
     QPushButton *btnConfig = nullptr;
     QPushButton *btnCopy = nullptr;
     QPushButton *btnPaste = nullptr;
 
-    // HIDE
     QComboBox   *labelHide = nullptr;
     QSpinBox    *timeSpinHide = nullptr;
     QPushButton *btnConfigHide = nullptr;

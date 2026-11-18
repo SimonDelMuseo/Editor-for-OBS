@@ -13,32 +13,23 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
-/* ────────────────────────────────────────────────
-   IMAGE SETTINGS — UI ELEMENTS (NUEVO DISEÑO)
-   ──────────────────────────────────────────────── */
 ImageSettings::ImageSettings(QWidget *parent)
     : Box(parent)
 {
     auto *layout = qobject_cast<QVBoxLayout *>(this->layout());
     layout->setSpacing(6);
 
-    /* ────────────────────────────────────────────────
-       LÍNEA 1:
-       Save Source Screenshot + Open Source Projector
-       ──────────────────────────────────────────────── */
     {
         auto *row = new QHBoxLayout();
         row->setSpacing(6);
 
         row->addStretch();
 
-        /* Botón de screenshot */
         saveScreenshotButton = new QPushButton(obs_module_text("SaveSourceScreenshot"));
         saveScreenshotButton->setObjectName("SaveSourceScreenshot");
         saveScreenshotButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         row->addWidget(saveScreenshotButton);
 
-        /* 🔥 LÓGICA DEL BOTÓN — EXACTAMENTE COMO OBS */
         connect(saveScreenshotButton, &QPushButton::clicked, this, [this]() {
             if (!model)
                 return;
@@ -52,7 +43,6 @@ ImageSettings::ImageSettings(QWidget *parent)
 
         row->addSpacing(10);
 
-        /* Botón que abrirá el menú de proyectores */
         projectorMenuButton = new QPushButton(obs_module_text("OpenSourceProjector"));
         projectorMenuButton->setObjectName("OpenSourceProjector");
         projectorMenuButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -60,7 +50,6 @@ ImageSettings::ImageSettings(QWidget *parent)
         projectorMenu = new QMenu(this);
         projectorMenuButton->setMenu(projectorMenu);
 
-        /* Rellenar menú dinámico de proyectores */
         projectorMenu->clear();
 
         QList<QScreen*> screens = QGuiApplication::screens();
@@ -88,17 +77,12 @@ ImageSettings::ImageSettings(QWidget *parent)
         layout->addLayout(row);
     }
 
-    /* ────────────────────────────────────────────────
-       LÍNEA 2:
-       Tres cajitas horizontales (texto arriba, combo abajo)
-       ──────────────────────────────────────────────── */
     {
         auto *row = new QHBoxLayout();
         row->setSpacing(20);
 
         row->addStretch();
 
-        /* ──────────────── CAJA 1 — Scale Filtering ──────────────── */
         {
             auto *box = new QVBoxLayout();
             box->setSpacing(4);
@@ -142,7 +126,6 @@ ImageSettings::ImageSettings(QWidget *parent)
             row->addLayout(box);
         }
 
-        /* ──────────────── CAJA 2 — Blending Mode ──────────────── */
         {
             auto *box = new QVBoxLayout();
             box->setSpacing(4);
@@ -170,7 +153,6 @@ ImageSettings::ImageSettings(QWidget *parent)
             row->addLayout(box);
         }
 
-        /* ──────────────── CAJA 3 — Blending Method ──────────────── */
         {
             auto *box = new QVBoxLayout();
             box->setSpacing(4);
@@ -199,9 +181,6 @@ ImageSettings::ImageSettings(QWidget *parent)
     }
 }
 
-/* ────────────────────────────────────────────────
-   SET SCALE FILTERING (UI UPDATE)
-   ──────────────────────────────────────────────── */
 void ImageSettings::setScaleFiltering(const QString &value)
 {
     if (!scaleFilteringCombo)

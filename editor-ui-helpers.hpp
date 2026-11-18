@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QAction>
 #include <QAbstractButton>
 #include <QColor>
 #include <QIcon>
@@ -8,13 +9,36 @@
 
 namespace editorui {
 
-// Devuelve "Dark" o "Light" según el tema actual de OBS
 std::string GetThemeTypeName();
 
-// Asigna un icono SVG al botón desde una ruta absoluta
 void SetButtonIcon(QAbstractButton *button, const char *path);
 
-// Construye automáticamente la ruta completa del icono dinámico
 std::string GetIconPath(const std::string &iconName);
 
-} // namespace editorui
+void RefreshButtonIcons();
+
+struct BoxBorder {
+    int width  = 1;
+    QColor color{0x80, 0x80, 0x80};
+    int radius = 4;
+};
+
+BoxBorder GetThemeBoxBorder();
+
+QColor GetPanelLineColor();
+
+struct MixerStateStyle {
+    QColor bg;
+    QColor fg;
+    bool found = false;
+};
+MixerStateStyle GetThemeMixerStateStyle(const char *stateClass);
+
+
+QAction *FindNativeAction(const char *name);
+
+bool TriggerNativeAction(const char *name);
+
+bool InvokeNativeMethod(const char *method);
+
+}

@@ -13,6 +13,8 @@ public:
     bool isExpanded(const QString &name) const;
     void setExpanded(const QString &name, bool expanded);
 
+    void rename(const QString &oldName, const QString &newName);
+
     void expandAll(const std::vector<QString> &names);
     void collapseAll();
 

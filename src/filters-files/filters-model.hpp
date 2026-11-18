@@ -16,6 +16,7 @@ public:
     ~FiltersModel();
 
     void setSource(obs_source_t *source);
+    obs_source_t *getSource() const { return currentSource; }
 
     std::vector<obs_source_t*> getFilters() const;
     void addFilter(const std::string &type);
@@ -35,6 +36,15 @@ public:
 signals:
     void filtersChanged();
 
+    void filterVisibilityChanged(obs_source_t *filter, bool enabled);
+    void filterRenamed(obs_source_t *filter, const QString &oldName);
+
 private:
     obs_source_t *currentSource = nullptr;
+
+    std::vector<obs_source_t *> connectedFilters;
+    void connectFilterSignals();
+    void releaseFilterSignals();
+    static void filter_rename_cb(void *data, calldata_t *cd);
+    static void filter_enable_cb(void *data, calldata_t *cd);
 };

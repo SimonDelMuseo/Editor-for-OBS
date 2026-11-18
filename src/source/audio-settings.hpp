@@ -5,16 +5,11 @@
 #include <QVector>
 #include <obs.h>
 
-/* Forward Qt */
 class QPushButton;
 class QCheckBox;
 class QSlider;
 class QSpinBox;
-class QComboBox;
 
-/* ────────────────────────────────────────────────
-   AUDIO SETTINGS — DECLARACIÓN DE ELEMENTOS UI
-   ──────────────────────────────────────────────── */
 class AudioSettings : public Box
 {
     Q_OBJECT
@@ -22,16 +17,16 @@ class AudioSettings : public Box
 public:
     explicit AudioSettings(QWidget *parent = nullptr);
 
-    /* CARGAR Y GUARDAR DESDE/HACIA OBS */
     void loadFromSource(obs_source_t *src);
     void saveToSource(obs_source_t *src);
 
 signals:
-    void settingsChanged();   // SourceTab lo usará para guardar
+    void settingsChanged(const QString &undoKey);
 
 protected:
-    /* PASO 1 — necesario para detectar doble clic */
     bool eventFilter(QObject *obj, QEvent *event) override;
+
+    void refreshMixerState(obs_source_t *src);
 
 private:
     QPushButton *hideInMixerButton = nullptr;
@@ -39,7 +34,7 @@ private:
     QCheckBox *monoCheck = nullptr;
     QSlider   *balanceSlider = nullptr;
     QSpinBox  *syncOffsetSpin = nullptr;
-    QComboBox *monitoringCombo = nullptr;
+    QCheckBox *monitorCheck = nullptr;
 
     QVector<QCheckBox*> trackChecks;
 };

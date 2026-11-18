@@ -12,9 +12,6 @@ AlignmentBox::AlignmentBox(QWidget *parent)
 {
     auto *box = new Box(this);
 
-    /* ============================================================
-       LÍNEA 1 — CENTER V / CENTER H
-       ============================================================ */
     auto *line1 = new QHBoxLayout();
     line1->setContentsMargins(0, 0, 0, 0);
     line1->setSpacing(10);
@@ -36,9 +33,6 @@ AlignmentBox::AlignmentBox(QWidget *parent)
     line1->addWidget(btnCenterV);
     line1->addWidget(btnCenterH);
 
-    /* ============================================================
-       LÍNEA 2 — FIT / STRETCH / CENTER TO SCREEN
-       ============================================================ */
     auto *line2 = new QHBoxLayout();
     line2->setContentsMargins(0, 0, 0, 0);
     line2->setSpacing(10);
@@ -68,25 +62,16 @@ AlignmentBox::AlignmentBox(QWidget *parent)
     line2->addWidget(btnStretch);
     line2->addWidget(btnCenterScreen);
 
-    /* ============================================================
-       INSERTAR EN EL BOX
-       ============================================================ */
     auto *inner = qobject_cast<QVBoxLayout*>(box->layout());
     if (inner) {
-        inner->addLayout(line1);
         inner->addLayout(line2);
+        inner->addLayout(line1);
     }
 
-    /* ============================================================
-       LAYOUT PRINCIPAL
-       ============================================================ */
     auto *main = new QVBoxLayout(this);
     main->setContentsMargins(0, 0, 0, 0);
     main->addWidget(box);
 
-    /* ============================================================
-       CONEXIONES → SEÑALES
-       ============================================================ */
     connect(btnCenterV,      &QPushButton::clicked, this, &AlignmentBox::centerVertical);
     connect(btnCenterH,      &QPushButton::clicked, this, &AlignmentBox::centerHorizontal);
 

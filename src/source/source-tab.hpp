@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QColor>
+#include <QMap>
 
 class EditorModel;
 class CopyPaste;
@@ -10,6 +11,7 @@ class Transitions;
 class AudioSettings;
 class ImageSettings;
 class VideoSettings;
+class QPropertyAnimation;
 
 class SourceTab : public QWidget
 {
@@ -21,7 +23,9 @@ public:
 private:
     void refreshUI();
 
-    /* ⭐ NUEVO: aplicar color personalizado (ConfirmColor) */
+    void setContainerVisible(QWidget *box, bool wantVisible);
+    void startBoxAnim(QWidget *box, int from, int to, bool hideAtEnd);
+
     void applyCustomColor(const QColor &color);
 
     EditorModel *model = nullptr;
@@ -32,4 +36,6 @@ private:
     ImageSettings *imageSettings = nullptr;
     VideoSettings *videoSettings = nullptr;
     AudioSettings *audioSettings = nullptr;
+
+    QMap<QWidget *, QPropertyAnimation *> boxAnims;
 };

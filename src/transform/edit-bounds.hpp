@@ -4,7 +4,7 @@
 class QComboBox;
 class QDoubleSpinBox;
 class QCheckBox;
-class AlignmentGrid;
+class AlignmentSelector;
 
 class EditBounds : public QWidget
 {
@@ -12,7 +12,6 @@ class EditBounds : public QWidget
 public:
     explicit EditBounds(QWidget *parent = nullptr);
 
-    /* Métodos para refrescar desde el modelo */
     void setBoundsType(int index);
     void setBoundsSize(double w, double h);
     void setCropToBounds(bool enabled);
@@ -30,7 +29,5 @@ private:
     QDoubleSpinBox *spinW     = nullptr;
     QDoubleSpinBox *spinH     = nullptr;
     QCheckBox      *chkCrop   = nullptr;
-    AlignmentGrid  *grid      = nullptr;
-
-    bool blockSignalsFlag = false;
+    AlignmentSelector  *grid      = nullptr;
 };

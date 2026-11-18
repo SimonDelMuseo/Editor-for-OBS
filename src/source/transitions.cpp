@@ -18,17 +18,19 @@
 #include <QPixmap>
 #include <QFont>
 
+#include <cstdio>
+
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
 #include "editor-model.hpp"
 
+static obs_data_t *captureTransitions(obs_sceneitem_t *item);
+static void pushTransitionsUndo(const char *nameKey, obs_sceneitem_t *item,
+                                obs_data_t *before, obs_data_t *after);
 
 static const int TRANSITION_LABEL_WIDTH = 60;
 
-/* ────────────────────────────────────────────────
-   CONSTRUCTOR — MONTAJE DE LA CAJA TRANSITIONS
-   ──────────────────────────────────────────────── */
 Transitions::Transitions(EditorModel *model, QWidget *parent)
     : QWidget(parent)
     , model(model)
@@ -40,31 +42,38 @@ Transitions::Transitions(EditorModel *model, QWidget *parent)
     connectShowTransition();
     connectHideTransition();
     connectConfigButton();
-    connectTimeControl();       // SHOW
-    connectTimeControlHide();   // HIDE
+    connectTimeControl();
+    connectTimeControlHide();
 
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->addWidget(box);
 
-    /* IMPORTANTE: actualizar combo al arrancar */
     updateShowLabel();
     updateHideLabel();
 
-    /* 🔥 NUEVO: sincronizar SIEMPRE que cambie el modelo */
     if (model) {
         QObject::connect(model, &EditorModel::modelUpdated,
                          this, [this]() {
             updateShowLabel();
             updateHideLabel();
+            refreshControlStates();
         });
     }
+
+    connect(btnCopy, &QPushButton::clicked,
+            this, &Transitions::refreshControlStates);
+    connect(btnPaste, &QPushButton::clicked,
+            this, &Transitions::refreshControlStates);
+    connect(btnCopyHide, &QPushButton::clicked,
+            this, &Transitions::refreshControlStates);
+    connect(btnPasteHide, &QPushButton::clicked,
+            this, &Transitions::refreshControlStates);
+
+    refreshControlStates();
 }
 
 
-/* ────────────────────────────────────────────────
-   BLOQUE — LÍNEA SHOW TRANSITION (UI)
-   ──────────────────────────────────────────────── */
 void Transitions::buildShowTransition(Box *box)
 {
     auto *v = qobject_cast<QVBoxLayout *>(box->layout());
@@ -79,13 +88,11 @@ void Transitions::buildShowTransition(Box *box)
     showLabel->setFixedWidth(TRANSITION_LABEL_WIDTH);
     showLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);    
     
-/* Selector (solo QComboBox estilo OBS) */
     auto *selectorShow = new QWidget(lineShow);
     auto *hShow = new QHBoxLayout(selectorShow);
     hShow->setContentsMargins(0, 0, 0, 0);
     hShow->setSpacing(4);
 
-    /* QComboBox OBS-like (NO editable) */
     labelShow = new QComboBox(selectorShow);
     labelShow->setEditable(false);
     labelShow->setInsertPolicy(QComboBox::NoInsert);
@@ -96,7 +103,6 @@ void Transitions::buildShowTransition(Box *box)
     labelShow->setStyleSheet("");
     hShow->addWidget(labelShow);
 
-    /* BOTÓN CONFIGURACIÓN (ENGRANAJE) */
     btnConfig = new QPushButton(lineShow);
     btnConfig->setFixedSize(26, 26);
     btnConfig->setObjectName("sourcePropertiesButton");    
@@ -106,7 +112,6 @@ void Transitions::buildShowTransition(Box *box)
         editorui::GetIconPath("Properties.svg").c_str()
     );
 
-    /* CONTROL DE TIEMPO — QSpinBox ESTILO OBS */
     timeSpin = new QSpinBox(lineShow);
     timeSpin->setRange(0, 10000);
     timeSpin->setSingleStep(50);
@@ -115,15 +120,13 @@ void Transitions::buildShowTransition(Box *box)
     timeSpin->setFixedHeight(26);
     timeSpin->setSuffix(" ms");
     timeSpin->setFixedWidth(82);
-    /* Padding interno para igualar a la QComboBox */
     timeSpin->setStyleSheet(
         "QSpinBox {"
-        "  padding-left: 4px;"   // ajusta 4–8px según lo veas
-        "  padding-right: 4px;"   // ajusta 4–8px según lo veas
+        "  padding-left: 4px;"
+        "  padding-right: 4px;"
         "}"
     );
 
-    /* BOTÓN COPIAR */        
     btnCopy = new QPushButton(lineShow);
     btnCopy->setFixedSize(26, 26);
     btnCopy->setObjectName("copyButton");
@@ -133,7 +136,6 @@ void Transitions::buildShowTransition(Box *box)
         editorui::GetIconPath("Copy.svg").c_str()
     );
 
-    /* BOTÓN PEGAR */
     btnPaste = new QPushButton(lineShow);
     btnPaste->setFixedSize(26, 26);
     btnPaste->setObjectName("pasteButton");
@@ -143,7 +145,6 @@ void Transitions::buildShowTransition(Box *box)
         editorui::GetIconPath("Paste.svg").c_str()
     );
 
-    /* Añadir widgets a la línea */
     hLineShow->addWidget(showLabel);
     hLineShow->addWidget(selectorShow);
     hLineShow->addWidget(btnConfig);
@@ -154,9 +155,6 @@ void Transitions::buildShowTransition(Box *box)
     if (v)
         v->addWidget(lineShow);
 
-    /* ────────────────────────────────────────────────
-    COPIAR — SHOW (clipboard universal)
-    ──────────────────────────────────────────────── */
     QObject::connect(btnCopy, &QPushButton::clicked, this, [this]() {
         if (!model)
             return;
@@ -167,7 +165,6 @@ void Transitions::buildShowTransition(Box *box)
 
         obs_data_t *data = obs_data_create();
 
-        // Tipo de transición (SHOW = true)
         obs_source_t *tr = obs_sceneitem_get_transition(item, true);
         if (tr) {
             const char *id = obs_source_get_unversioned_id(tr);
@@ -180,20 +177,15 @@ void Transitions::buildShowTransition(Box *box)
             obs_data_set_string(data, "transition_id", "");
         }
 
-        // Duración
         uint32_t dur = obs_sceneitem_get_transition_duration(item, true);
         obs_data_set_int(data, "transition_duration", dur);
 
-        // Guardar en clipboard universal
         if (model->clipboardTransition)
             obs_data_release(model->clipboardTransition);
 
         model->clipboardTransition = data;
     });
 
-    /* ────────────────────────────────────────────────
-    PEGAR — SHOW (usa clipboard universal)
-    ──────────────────────────────────────────────── */
     QObject::connect(btnPaste, &QPushButton::clicked, this, [this]() {
         if (!model)
             return;
@@ -206,6 +198,8 @@ void Transitions::buildShowTransition(Box *box)
         if (!data)
             return;
 
+        obs_data_t *before = captureTransitions(item);
+
         QString id = obs_data_get_string(data, "transition_id");
         obs_source_t *transition = nullptr;
 
@@ -217,7 +211,6 @@ void Transitions::buildShowTransition(Box *box)
             obs_data_release(settings);
         }
 
-        // Aplicar SIEMPRE como SHOW (true)
         obs_sceneitem_set_transition(item, true, transition);
 
         if (transition)
@@ -228,13 +221,15 @@ void Transitions::buildShowTransition(Box *box)
 
         updateShowLabel();
         updateHideLabel();
+
+        obs_data_t *after = captureTransitions(item);
+        pushTransitionsUndo("UndoShowTransition", item, before, after);
+        obs_data_release(before);
+        obs_data_release(after);
     });
 
 }
 
-/* ────────────────────────────────────────────────
-   BLOQUE — LÍNEA HIDE TRANSITION (UI)
-   ──────────────────────────────────────────────── */
 void Transitions::buildHideTransition(Box *box)
 {
     auto *v = qobject_cast<QVBoxLayout *>(box->layout());
@@ -249,13 +244,11 @@ void Transitions::buildHideTransition(Box *box)
     hideLabelTitle->setFixedWidth(TRANSITION_LABEL_WIDTH);
     hideLabelTitle->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-    /* Selector (QComboBox estilo OBS) */
     auto *selectorHide = new QWidget(lineHide);
     auto *hHide = new QHBoxLayout(selectorHide);
     hHide->setContentsMargins(0, 0, 0, 0);
     hHide->setSpacing(4);
 
-    /* QComboBox OBS-like */
     labelHide = new QComboBox(selectorHide);
     labelHide->setEditable(false);
     labelHide->setInsertPolicy(QComboBox::NoInsert);
@@ -266,7 +259,6 @@ void Transitions::buildHideTransition(Box *box)
     labelHide->setStyleSheet("");
     hHide->addWidget(labelHide);
 
-    /* BOTÓN CONFIGURACIÓN (ENGRANAJE) */
     btnConfigHide = new QPushButton(lineHide);
     btnConfigHide->setFixedSize(26, 26);
     btnConfigHide->setObjectName("sourcePropertiesButton");
@@ -276,7 +268,6 @@ void Transitions::buildHideTransition(Box *box)
         editorui::GetIconPath("Properties.svg").c_str()
     );
     
-    /* CONTROL DE TIEMPO — QSpinBox estilo OBS */
     timeSpinHide = new QSpinBox(lineHide);
     timeSpinHide->setRange(0, 10000);
     timeSpinHide->setSingleStep(50);
@@ -292,7 +283,6 @@ void Transitions::buildHideTransition(Box *box)
         "}"
     );
 
-    /* BOTÓN COPIAR */
     btnCopyHide = new QPushButton(lineHide);
     btnCopyHide->setFixedSize(26, 26);
     btnCopyHide->setObjectName("copyButton");
@@ -302,7 +292,6 @@ void Transitions::buildHideTransition(Box *box)
         editorui::GetIconPath("Copy.svg").c_str()
     );
 
-    /* BOTÓN PEGAR */
     btnPasteHide = new QPushButton(lineHide);
     btnPasteHide->setFixedSize(26, 26);
     btnPasteHide->setObjectName("pasteButton");
@@ -312,7 +301,6 @@ void Transitions::buildHideTransition(Box *box)
         editorui::GetIconPath("Paste.svg").c_str()
     );
 
-    /* Añadir widgets a la línea */
     hLineHide->addWidget(hideLabelTitle);
     hLineHide->addWidget(selectorHide);
     hLineHide->addWidget(btnConfigHide);
@@ -323,9 +311,6 @@ void Transitions::buildHideTransition(Box *box)
     if (v)
         v->addWidget(lineHide);
 
-    /* ────────────────────────────────────────────────
-    COPIAR — HIDE (clipboard universal)
-    ──────────────────────────────────────────────── */
     QObject::connect(btnCopyHide, &QPushButton::clicked, this, [this]() {
         if (!model)
             return;
@@ -336,7 +321,6 @@ void Transitions::buildHideTransition(Box *box)
 
         obs_data_t *data = obs_data_create();
 
-        // Tipo de transición (HIDE = false)
         obs_source_t *tr = obs_sceneitem_get_transition(item, false);
         if (tr) {
             const char *id = obs_source_get_unversioned_id(tr);
@@ -349,20 +333,15 @@ void Transitions::buildHideTransition(Box *box)
             obs_data_set_string(data, "transition_id", "");
         }
 
-        // Duración
         uint32_t dur = obs_sceneitem_get_transition_duration(item, false);
         obs_data_set_int(data, "transition_duration", dur);
 
-        // Guardar en clipboard universal
         if (model->clipboardTransition)
             obs_data_release(model->clipboardTransition);
 
         model->clipboardTransition = data;
     });
 
-    /* ────────────────────────────────────────────────
-    PEGAR — HIDE (usa clipboard universal)
-    ──────────────────────────────────────────────── */
     QObject::connect(btnPasteHide, &QPushButton::clicked, this, [this]() {
         if (!model)
             return;
@@ -375,6 +354,8 @@ void Transitions::buildHideTransition(Box *box)
         if (!data)
             return;
 
+        obs_data_t *before = captureTransitions(item);
+
         QString id = obs_data_get_string(data, "transition_id");
         obs_source_t *transition = nullptr;
 
@@ -386,7 +367,6 @@ void Transitions::buildHideTransition(Box *box)
             obs_data_release(settings);
         }
 
-        // Aplicar SIEMPRE como HIDE (false)
         obs_sceneitem_set_transition(item, false, transition);
 
         if (transition)
@@ -397,42 +377,167 @@ void Transitions::buildHideTransition(Box *box)
 
         updateShowLabel();
         updateHideLabel();
+
+        obs_data_t *after = captureTransitions(item);
+        pushTransitionsUndo("UndoHideTransition", item, before, after);
+        obs_data_release(before);
+        obs_data_release(after);
     });
 
             
 }
 
-/* ────────────────────────────────────────────────
-   BLOQUE — SELECCIÓN NATIVA DEL QCOMBOBOX
-   ──────────────────────────────────────────────── */
+static void storeTransition(obs_data_t *d, const char *prefix,
+                            obs_sceneitem_t *item, bool show)
+{
+    char key[64];
+    obs_source_t *tr = obs_sceneitem_get_transition(item, show);
+
+    if (!tr) {
+        snprintf(key, sizeof(key), "%s_id", prefix);
+        obs_data_set_string(d, key, "");
+        return;
+    }
+
+    snprintf(key, sizeof(key), "%s_id", prefix);
+    obs_data_set_string(d, key, obs_source_get_id(tr));
+
+    obs_data_t *settings = obs_source_get_settings(tr);
+    if (settings) {
+        snprintf(key, sizeof(key), "%s_settings", prefix);
+        obs_data_set_obj(d, key, settings);
+        obs_data_release(settings);
+    }
+
+    snprintf(key, sizeof(key), "%s_dur", prefix);
+    obs_data_set_int(d, key, obs_sceneitem_get_transition_duration(item, show));
+}
+
+static obs_data_t *captureTransitions(obs_sceneitem_t *item)
+{
+    obs_data_t *d = obs_data_create();
+
+    obs_scene_t *sc = obs_sceneitem_get_scene(item);
+    obs_source_t *scs = sc ? obs_scene_get_source(sc) : nullptr;
+    obs_data_set_string(d, "scene_uuid", scs ? obs_source_get_uuid(scs) : "");
+    obs_data_set_int(d, "item_id", obs_sceneitem_get_id(item));
+
+    storeTransition(d, "show", item, true);
+    storeTransition(d, "hide", item, false);
+    return d;
+}
+
+static void applyTransition(obs_data_t *d, const char *prefix,
+                            obs_sceneitem_t *item, bool show)
+{
+    char key[64];
+
+    snprintf(key, sizeof(key), "%s_id", prefix);
+    const char *id = obs_data_get_string(d, key);
+
+    if (!id || !*id) {
+        obs_sceneitem_set_transition(item, show, nullptr);
+        return;
+    }
+
+    obs_data_t *settings;
+    snprintf(key, sizeof(key), "%s_settings", prefix);
+    settings = obs_data_get_obj(d, key);
+    if (!settings)
+        settings = obs_data_create();
+
+    obs_source_t *transition = obs_source_create_private(id, id, settings);
+    obs_data_release(settings);
+
+    if (!transition)
+        return;
+
+    obs_sceneitem_set_transition(item, show, transition);
+
+    snprintf(key, sizeof(key), "%s_dur", prefix);
+    obs_sceneitem_set_transition_duration(item, show,
+                                          (uint32_t)obs_data_get_int(d, key));
+
+    obs_source_release(transition);
+}
+
+static void transitions_undo_cb(const char *data)
+{
+    obs_data_t *d = obs_data_create_from_json(data);
+    if (!d)
+        return;
+
+    const char *uuid = obs_data_get_string(d, "scene_uuid");
+    int64_t itemId = obs_data_get_int(d, "item_id");
+
+    obs_source_t *sceneSrc =
+        (uuid && *uuid) ? obs_get_source_by_uuid(uuid) : nullptr;
+    obs_scene_t *sc = sceneSrc ? obs_scene_from_source(sceneSrc) : nullptr;
+    obs_sceneitem_t *item = sc ? obs_scene_find_sceneitem_by_id(sc, itemId) : nullptr;
+
+    if (item) {
+        applyTransition(d, "show", item, true);
+        applyTransition(d, "hide", item, false);
+    }
+
+    if (sceneSrc)
+        obs_source_release(sceneSrc);
+    obs_data_release(d);
+
+    if (EditorModel *m = EditorModel::instanceForUndo()) {
+        m->refreshItemCaches();
+        m->modelUpdated();
+    }
+}
+
+static void pushTransitionsUndo(const char *nameKey, obs_sceneitem_t *item,
+                                obs_data_t *before, obs_data_t *after)
+{
+    const char *b = obs_data_get_json(before);
+    const char *a = obs_data_get_json(after);
+
+    if (!b || !a || strcmp(b, a) == 0)
+        return;
+
+    obs_frontend_add_undo_redo_action(obs_module_text(nameKey),
+                                      transitions_undo_cb, transitions_undo_cb,
+                                      b, a, false);
+}
+
 void Transitions::connectShowTransition()
 {
     QObject::connect(labelShow, qOverload<int>(&QComboBox::currentIndexChanged),
                      this,
                      [this](int index) {
 
-        /* PROTECCIÓN CRÍTICA — EVITA CRASH AL SELECCIONAR FUENTE */
         if (!model)
             return;
 
         obs_sceneitem_t *item = model->selectedItem();
         if (!item)
-            return;   // ← ESTE RETURN EVITA EL CRASH
+            return;
+
+        obs_data_t *before = captureTransitions(item);
 
         QString id = labelShow->itemData(index).toString();
 
-        /* Si elige "None" */
         if (id.isEmpty()) {
             obs_sceneitem_set_transition(item, true, nullptr);
-            emit model->modelUpdated();
 
+            m_applyingTransition = true;
             if (timeSpin)
                 timeSpin->setValue(300);
+            m_applyingTransition = false;
 
+            obs_data_t *after = captureTransitions(item);
+            pushTransitionsUndo("UndoShowTransition", item, before, after);
+            obs_data_release(before);
+            obs_data_release(after);
+
+            emit model->modelUpdated();
             return;
         }
 
-        /* Crear instancia temporal */
         obs_data_t *settings = obs_data_create();
         obs_source_t *transition =
             obs_source_create_private(id.toUtf8().constData(),
@@ -443,13 +548,16 @@ void Transitions::connectShowTransition()
         if (!transition)
             return;
 
-        /* Aplicar transición */
         obs_sceneitem_set_transition(item, true, transition);
         obs_source_release(transition);
 
+        obs_data_t *after = captureTransitions(item);
+        pushTransitionsUndo("UndoShowTransition", item, before, after);
+        obs_data_release(before);
+        obs_data_release(after);
+
         emit model->modelUpdated();
 
-        /* Actualizar duración */
         if (timeSpin) {
             int duration = obs_sceneitem_get_transition_duration(item, true);
             timeSpin->setValue(duration);
@@ -457,16 +565,12 @@ void Transitions::connectShowTransition()
     });
 }
 
-/* ────────────────────────────────────────────────
-   BLOQUE — SELECCIÓN NATIVA DEL QCOMBOBOX (HIDE)
-   ──────────────────────────────────────────────── */
 void Transitions::connectHideTransition()
 {
     QObject::connect(labelHide, qOverload<int>(&QComboBox::currentIndexChanged),
                      this,
                      [this](int index) {
 
-        /* PROTECCIÓN CRÍTICA — EVITA CRASH AL SELECCIONAR FUENTE */
         if (!model)
             return;
 
@@ -474,20 +578,27 @@ void Transitions::connectHideTransition()
         if (!item)
             return;
 
+        obs_data_t *before = captureTransitions(item);
+
         QString id = labelHide->itemData(index).toString();
 
-        /* Si elige "None" */
         if (id.isEmpty()) {
             obs_sceneitem_set_transition(item, false, nullptr);
-            emit model->modelUpdated();
 
+            m_applyingTransition = true;
             if (timeSpinHide)
                 timeSpinHide->setValue(300);
+            m_applyingTransition = false;
 
+            obs_data_t *after = captureTransitions(item);
+            pushTransitionsUndo("UndoHideTransition", item, before, after);
+            obs_data_release(before);
+            obs_data_release(after);
+
+            emit model->modelUpdated();
             return;
         }
 
-        /* Crear instancia temporal */
         obs_data_t *settings = obs_data_create();
         obs_source_t *transition =
             obs_source_create_private(id.toUtf8().constData(),
@@ -498,13 +609,16 @@ void Transitions::connectHideTransition()
         if (!transition)
             return;
 
-        /* Aplicar transición */
         obs_sceneitem_set_transition(item, false, transition);
         obs_source_release(transition);
 
+        obs_data_t *after = captureTransitions(item);
+        pushTransitionsUndo("UndoHideTransition", item, before, after);
+        obs_data_release(before);
+        obs_data_release(after);
+
         emit model->modelUpdated();
 
-        /* Actualizar duración */
         if (timeSpinHide) {
             int duration = obs_sceneitem_get_transition_duration(item, false);
             timeSpinHide->setValue(duration);
@@ -512,12 +626,8 @@ void Transitions::connectHideTransition()
     });
 }
 
-/* ────────────────────────────────────────────────
-   BOTÓN ⚙ — ABRIR PROPIEDADES DE LA TRANSICIÓN
-   ──────────────────────────────────────────────── */
 void Transitions::connectConfigButton()
 {
-    // CONFIG SHOW
     QObject::connect(btnConfig, &QPushButton::clicked, this, [this]() {
 
         if (!model)
@@ -533,7 +643,6 @@ void Transitions::connectConfigButton()
 
         obs_frontend_open_source_properties(transition);
     });
-    // CONFIG HIDE
 QObject::connect(btnConfigHide, &QPushButton::clicked, this, [this]() {
 
     if (!model)
@@ -552,9 +661,6 @@ QObject::connect(btnConfigHide, &QPushButton::clicked, this, [this]() {
 
 }
 
-/* ────────────────────────────────────────────────
-   CONTROL DE TIEMPO — SINCRONIZAR CON OBS (SHOW)
-   ──────────────────────────────────────────────── */
 void Transitions::connectTimeControl()
 {
     if (!timeSpin)
@@ -570,14 +676,20 @@ void Transitions::connectTimeControl()
         if (!item)
             return;
 
-        // ESCRIBIR LA DURACIÓN EN OBS
+        uint32_t old = obs_sceneitem_get_transition_duration(item, true);
+        if (old == (uint32_t)value)
+            return;
+
         obs_sceneitem_set_transition_duration(item, true, (uint32_t)value);
+
+        if (m_applyingTransition)
+            return;
+
+        model->pushItemPropUndo("UndoShowTransition", item,
+                                "transition_duration_show", old, value, true);
     });
 }
 
-/* ────────────────────────────────────────────────
-   CONTROL DE TIEMPO — SINCRONIZAR CON OBS (HIDE)
-   ──────────────────────────────────────────────── */
 void Transitions::connectTimeControlHide()
 {
     if (!timeSpinHide)
@@ -593,30 +705,30 @@ void Transitions::connectTimeControlHide()
         if (!item)
             return;
 
-        // ESCRIBIR LA DURACIÓN EN OBS (HIDE)
+        uint32_t old = obs_sceneitem_get_transition_duration(item, false);
+        if (old == (uint32_t)value)
+            return;
+
         obs_sceneitem_set_transition_duration(item, false, (uint32_t)value);
+
+        if (m_applyingTransition)
+            return;
+
+        model->pushItemPropUndo("UndoHideTransition", item,
+                                "transition_duration_hide", old, value, true);
     });
 }
 
-/* ────────────────────────────────────────────────
-   MÉTODO — ACTUALIZAR LABEL DESDE FUERA (SHOW)
-   ──────────────────────────────────────────────── */
 void Transitions::updateShowLabel(const QString &)
 {
     if (!model || !labelShow)
         return;
 
-    /* No actualizar mientras el usuario está usando el combo */
     if (labelShow->view()->isVisible())
         return;    
 
-    /* PROTECCIÓN: no emitir señales mientras actualizamos */
     QSignalBlocker blocker(labelShow);
 
-    /* ────────────────────────────────────────────────
-       REPoblar QComboBox con todas las transiciones
-       (seguro gracias a QSignalBlocker)
-       ──────────────────────────────────────────────── */
     labelShow->clear();
     labelShow->addItem(obs_module_text("None"), "");
 
@@ -630,9 +742,6 @@ void Transitions::updateShowLabel(const QString &)
                            QString::fromUtf8(tid));
     }
 
-    /* ────────────────────────────────────────────────
-       OBTENER ITEM SELECCIONADO
-       ──────────────────────────────────────────────── */
     obs_sceneitem_t *item = model->selectedItem();
     if (!item) {
         labelShow->setCurrentIndex(0);
@@ -654,18 +763,12 @@ void Transitions::updateShowLabel(const QString &)
         return;
     }
 
-    /* ────────────────────────────────────────────────
-       SELECCIONAR TRANSICIÓN ACTUAL
-       ──────────────────────────────────────────────── */
     const char *id = obs_source_get_unversioned_id(current);
 
     int index = labelShow->findData(QString::fromUtf8(id));
     if (index >= 0)
         labelShow->setCurrentIndex(index);
 
-    /* ────────────────────────────────────────────────
-       ACTUALIZAR DURACIÓN
-       ──────────────────────────────────────────────── */
     if (timeSpin) {
         uint32_t duration = obs_sceneitem_get_transition_duration(item, true);
         if (duration == 0)
@@ -673,24 +776,16 @@ void Transitions::updateShowLabel(const QString &)
         timeSpin->setValue((int)duration);
     }
 }
-/* ────────────────────────────────────────────────
-   MÉTODO — ACTUALIZAR LABEL DESDE FUERA (HIDE)
-   ──────────────────────────────────────────────── */
 void Transitions::updateHideLabel(const QString &)
 {
     if (!model || !labelHide)
         return;
 
-    /* No actualizar mientras el usuario está usando el combo */
     if (labelHide->view()->isVisible())
         return;
 
-    /* PROTECCIÓN: no emitir señales mientras actualizamos */
     QSignalBlocker blocker(labelHide);
 
-    /* ────────────────────────────────────────────────
-       REPoblar QComboBox con todas las transiciones
-       ──────────────────────────────────────────────── */
     labelHide->clear();
     labelHide->addItem(obs_module_text("None"), "");
 
@@ -704,9 +799,6 @@ void Transitions::updateHideLabel(const QString &)
                            QString::fromUtf8(tid));
     }
 
-    /* ────────────────────────────────────────────────
-       OBTENER ITEM SELECCIONADO
-       ──────────────────────────────────────────────── */
     obs_sceneitem_t *item = model->selectedItem();
     if (!item) {
         labelHide->setCurrentIndex(0);
@@ -728,24 +820,64 @@ void Transitions::updateHideLabel(const QString &)
         return;
     }
 
-    /* ────────────────────────────────────────────────
-       SELECCIONAR TRANSICIÓN ACTUAL
-       ──────────────────────────────────────────────── */
     const char *id = obs_source_get_unversioned_id(current);
 
     int index = labelHide->findData(QString::fromUtf8(id));
     if (index >= 0)
         labelHide->setCurrentIndex(index);
 
-    /* ────────────────────────────────────────────────
-       ACTUALIZAR DURACIÓN
-       ──────────────────────────────────────────────── */
     if (timeSpinHide) {
         uint32_t duration = obs_sceneitem_get_transition_duration(item, false);
         if (duration == 0)
             duration = obs_frontend_get_transition_duration();
         timeSpinHide->setValue((int)duration);
     }
+}
+
+void Transitions::refreshControlStates()
+{
+    const bool hasItem = model && model->selectedItem() != nullptr;
+
+    const QString showId =
+        labelShow ? labelShow->currentData().toString() : QString();
+    const QString hideId =
+        labelHide ? labelHide->currentData().toString() : QString();
+
+    const bool showNone = showId.isEmpty();
+    const bool hideNone = hideId.isEmpty();
+
+    const bool showNoCfg =
+        showNone || showId == "cut_transition" || showId == "fade_transition";
+    const bool hideNoCfg =
+        hideNone || hideId == "cut_transition" || hideId == "fade_transition";
+
+    if (btnConfig)
+        btnConfig->setEnabled(hasItem && !showNoCfg);
+    if (timeSpin)
+        timeSpin->setEnabled(
+            hasItem && !showNone && showId != "cut_transition");
+    if (btnCopy)
+        btnCopy->setEnabled(hasItem && !showNone);
+
+    if (btnConfigHide)
+        btnConfigHide->setEnabled(hasItem && !hideNoCfg);
+    if (timeSpinHide)
+        timeSpinHide->setEnabled(
+            hasItem && !hideNone && hideId != "cut_transition");
+    if (btnCopyHide)
+        btnCopyHide->setEnabled(hasItem && !hideNone);
+
+    bool hasBuffer = false;
+    if (model && model->clipboardTransition) {
+        const char *bid =
+            obs_data_get_string(model->clipboardTransition, "transition_id");
+        hasBuffer = bid && *bid;
+    }
+
+    if (btnPaste)
+        btnPaste->setEnabled(hasItem && hasBuffer);
+    if (btnPasteHide)
+        btnPasteHide->setEnabled(hasItem && hasBuffer);
 }
 
 

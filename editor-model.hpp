@@ -3,8 +3,10 @@
 
 #include <QObject>
 #include <QString>
-#include <QColor> 
+#include <QColor>
+#include <QList>
 #include <obs.h>
+#include <functional>
 
 class EditorModel : public QObject {
     Q_OBJECT
@@ -13,20 +15,36 @@ public:
     explicit EditorModel(QObject *parent = nullptr);
     ~EditorModel();
 
-    /* ────────────────────────────────────────────────
-       ACTUALIZACIÓN DEL MODELO
-       ──────────────────────────────────────────────── */
     void setSelectedItem(obs_sceneitem_t *item);
     void setCurrentScene(obs_scene_t *scene);
 
-    /* ────────────────────────────────────────────────
-       GETTERS PÚBLICOS — ESCENA ACTUAL Y FUENTE ACTUAL
-       ──────────────────────────────────────────────── */
+    void syncSelection(obs_sceneitem_t *item);
+
+    void refreshItemCaches();
+    void refreshSceneCaches();
+    void notifySceneListChanged();
+    void notifySceneItemsChanged();
+    void notifyTransformChanged();
+    void notifyFiltersChanged();
+    void invalidateUsedInCache();
+
+    static void sourceStateCb(void *param, calldata_t *data);
+    static void sourceDestroyCb(void *param, calldata_t *data);
+    void connectSourceSignals();
+    void disconnectSourceSignals();
+    obs_source_t *connectedSource = nullptr;
+
+    void invalidate();
+
+    static EditorModel *instanceForUndo() { return s_instance; }
+    void applyTransformStateJson(const char *json);
+
+    void openNativeProperties();
+    void openNativeSourceFilters();
+    void openNativeTransform();
+
     obs_sceneitem_t *currentSceneItem() const { return currentItem; }
 
-    /* ────────────────────────────────────────────────
-       GETTERS PÚBLICOS — ITEM SELECCIONADO
-       ──────────────────────────────────────────────── */
     obs_sceneitem_t *selectedItem() const { return currentItem; }
     obs_source_t    *selectedSource() const { return currentSource; }
 
@@ -35,42 +53,27 @@ public:
     bool isVisible() const { return visibleCache; }
     bool isLocked() const { return lockedCache; }
 
-    /* ────────────────────────────────────────────────
-      GETTERS PÚBLICOS — COLOR DEL ITEM 
-      ──────────────────────────────────────────────── */
     QColor currentItemColor() const;
     int currentItemPreset() const;
 
-    /* ────────────────────────────────────────────────
-       NUEVOS GETTERS — BASIC INFORMATION
-       ──────────────────────────────────────────────── */
+    void applyColorPresetToSelection(int uiPreset);
+    void applyCustomColorToSelection(const QColor &color);
+
     QString sourceSize() const;
     QString scaledSize() const;
     QString usedInScenes() const;
 
-    /* ────────────────────────────────────────────────
-       GETTERS PÚBLICOS — ESCENA ACTIVA
-       ──────────────────────────────────────────────── */
     obs_scene_t  *currentScene() const { return scene; }
     obs_source_t *currentSceneSource() const { return sceneSource; }
     QString       currentSceneName() const { return sceneNameCache; }
 
-    /* ────────────────────────────────────────────────
-       GETTERS AÑADIDOS — PARA HEADER (NOMBRES Y PUNTEROS)
-       ──────────────────────────────────────────────── */
     QString sceneName() const { return sceneNameCache; }
     QString sourceNameCacheValue() const { return sourceNameCache; }
     obs_source_t *sceneSourcePtr() const { return sceneSource; }
     obs_source_t *currentSourcePtr() const { return currentSource; }
 
-    /* ────────────────────────────────────────────────
-       CLIPBOARD — TRANSICIONES (COPIAR/PEGAR)
-       ──────────────────────────────────────────────── */
     obs_data_t *clipboardTransition = nullptr;
 
-    /* ────────────────────────────────────────────────
-       ACCIONES DE TRANSFORMACIÓN (NUEVO)
-       ──────────────────────────────────────────────── */
     void rotate90CW();
     void rotate90CCW();
     void rotate180();
@@ -85,21 +88,32 @@ public:
     void centerVertical();
     void centerHorizontal();
 
-    /* ────────────────────────────────────────────────
-       COPY / PASTE / RESET (NUEVO)
-       ──────────────────────────────────────────────── */
     void copyTransform();
     void pasteTransform();
     void resetTransform();
 
+    void editTransform(const char *nameKey,
+                       const std::function<void(obs_sceneitem_t *)> &action);
+
+    obs_data_t *captureAudioState(obs_source_t *src);
+    void pushAudioUndo(const char *nameKey, obs_data_t *before,
+                       obs_data_t *after, bool repeatable = true);
+    void pushItemPropUndo(const char *nameKey, obs_sceneitem_t *item,
+                          const char *prop, int before, int after,
+                          bool repeatable = false);
+    void pushSourcePropUndo(const char *nameKey, obs_source_t *src,
+                            const char *prop, double before, double after,
+                            bool repeatable = false);
+
 signals:
     void modelUpdated();
     void sceneChanged();
+    void sceneListChanged();
+    void sceneItemsChanged();
+    void transformChanged();
+    void filtersChangedExternally();
 
 private:
-    /* ────────────────────────────────────────────────
-       Datos internos — ITEM SELECCIONADO
-       ──────────────────────────────────────────────── */
     obs_sceneitem_t *currentItem  = nullptr;
     obs_source_t    *currentSource = nullptr;
 
@@ -108,18 +122,33 @@ private:
     bool visibleCache = false;
     bool lockedCache  = false;
 
-    /* ────────────────────────────────────────────────
-       Datos internos — ESCENA ACTIVA
-       ──────────────────────────────────────────────── */
     obs_scene_t  *scene       = nullptr;
     obs_source_t *sceneSource = nullptr;
     QString       sceneNameCache;
 
-    /* ────────────────────────────────────────────────
-       Funciones internas para refrescar datos
-       ──────────────────────────────────────────────── */
+    mutable bool          usedInValid = false;
+    mutable obs_source_t *usedInSource = nullptr;
+    mutable int           usedInCount  = 0;
+
+    static EditorModel *s_instance;
+
     void updateItemData();
     void updateSceneData();
+
+    QList<obs_sceneitem_t *> selectedItemsRecursive() const;
+    void refreshObsSourcesTree();
+
+    void releaseItemRefs();
+    void releaseSceneRefs();
+
+    obs_data_t *captureTransformState();
+    void pushTransformUndo(const char *nameKey, obs_data_t *before, obs_data_t *after,
+                           bool repeatable = false);
+    void runTransformAction(const char *nameKey,
+                            const std::function<void(obs_sceneitem_t *)> &action,
+                            bool repeatable = false);
+    static void undoStatic(const char *data);
+    static void redoStatic(const char *data);
 };
 
-#endif // E33_EDITOR_MODEL_HPP
+#endif

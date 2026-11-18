@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <QWidget>
 
 extern "C" {
@@ -10,6 +10,7 @@ class FiltersModel;
 class FiltersRenderer;
 class FiltersState;
 class FiltersProperRenderer;
+class QResizeEvent;
 
 class FiltersTab : public QWidget
 {
@@ -21,6 +22,9 @@ public:
 
 private slots:
     void refreshUI();
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     EditorModel *model = nullptr;

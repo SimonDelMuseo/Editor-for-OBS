@@ -3,7 +3,6 @@
 
 OBSPlainTextEdit::OBSPlainTextEdit(QWidget *parent, bool monospace) : QPlainTextEdit(parent)
 {
-	// Fix display of tabs & multiple spaces
 	document()->setDefaultStyleSheet("font { white-space: pre; }");
 
 	if (monospace) {

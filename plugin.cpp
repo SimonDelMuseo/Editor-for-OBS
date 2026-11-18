@@ -1,33 +1,22 @@
-/* ────────────────────────────────────────────────
-   INCLUDES
-   ──────────────────────────────────────────────── */
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 
 #include <QApplication>
 #include <QMainWindow>
+#include <QPointer>
 
 #include "plugin.hpp"
 #include "editor-dock.hpp"
 #include "editor-controller.hpp"
 #include "editor-model.hpp"
 
-/* ────────────────────────────────────────────────
-   VARIABLES GLOBALES
-   ──────────────────────────────────────────────── */
 static EditorController *controller = nullptr;
-static EditorDock       *editorDock = nullptr;
+static QPointer<EditorDock> editorDock;
 static EditorModel      *model      = nullptr;
 
-/* ────────────────────────────────────────────────
-   DECLARACIÓN DEL MÓDULO
-   ──────────────────────────────────────────────── */
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("E33-Editor", "en-US")
 
-/* ────────────────────────────────────────────────
-   LOAD — REGISTRO EXACTO AL MODELO EXELDRO
-   ──────────────────────────────────────────────── */
 bool obs_module_load(void)
 {
     blog(LOG_INFO, "[E33 Editor] Loaded");
@@ -40,7 +29,6 @@ bool obs_module_load(void)
 
     model = new EditorModel();
 
-    // Igual que Exeldro: parent = QMainWindow de OBS
     auto *mainWindow = static_cast<QMainWindow *>(obs_frontend_get_main_window());
     editorDock = new EditorDock(model, mainWindow);
 
@@ -49,15 +37,12 @@ bool obs_module_load(void)
     obs_frontend_add_dock_by_id(
         "E33-Editor",
         obs_module_text("E33PanelName"),
-        editorDock
+        editorDock.data()
     );
 
     return true;
 }
 
-/* ────────────────────────────────────────────────
-   UNLOAD
-   ──────────────────────────────────────────────── */
 void obs_module_unload(void)
 {
     blog(LOG_INFO, "[E33 Editor] Unloaded");
@@ -65,9 +50,12 @@ void obs_module_unload(void)
     delete controller;
     controller = nullptr;
 
+    obs_frontend_remove_dock("E33-Editor");
+    if (editorDock) {
+        delete editorDock;
+        editorDock = nullptr;
+    }
+
     delete model;
     model = nullptr;
-
-    delete editorDock;
-    editorDock = nullptr;
 }

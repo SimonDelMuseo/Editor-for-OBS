@@ -9,19 +9,12 @@
 #include <obs.h>
 #include <obs-module.h>
 
-/* ────────────────────────────────────────────────
-   VIDEO SETTINGS — DESENTRELACADO
-   ──────────────────────────────────────────────── */
 VideoSettings::VideoSettings(QWidget *parent)
     : Box(parent)
 {
-    // ✔️ Recuperamos el layout REAL de Box (como en tu respaldo)
     auto *mainLayout = qobject_cast<QVBoxLayout *>(this->layout());
     mainLayout->setSpacing(6);
 
-    /* ────────────────────────────────────────────────
-       1) FILA: TÍTULO + COMBOBOX
-       ──────────────────────────────────────────────── */
     QWidget *row = new QWidget(this);
     auto *rowLayout = new QHBoxLayout(row);
     rowLayout->setContentsMargins(0, 0, 0, 0);
@@ -36,9 +29,10 @@ VideoSettings::VideoSettings(QWidget *parent)
     deinterlaceCombo->setInsertPolicy(QComboBox::NoInsert);
     deinterlaceCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    // ✔️ Modos reales de OBS
-    deinterlaceCombo->addItem("Disable",   OBS_DEINTERLACE_MODE_DISABLE);
-    deinterlaceCombo->addItem("Discard",   OBS_DEINTERLACE_MODE_DISCARD);
+    deinterlaceCombo->addItem(obs_module_text("Deinterlace_Disable"),
+                              OBS_DEINTERLACE_MODE_DISABLE);
+    deinterlaceCombo->addItem(obs_module_text("Deinterlace_Discard"),
+                              OBS_DEINTERLACE_MODE_DISCARD);
     deinterlaceCombo->addItem("Retro",     OBS_DEINTERLACE_MODE_RETRO);
     deinterlaceCombo->addItem("Blend",     OBS_DEINTERLACE_MODE_BLEND);
     deinterlaceCombo->addItem("Blend 2x",  OBS_DEINTERLACE_MODE_BLEND_2X);
@@ -50,9 +44,6 @@ VideoSettings::VideoSettings(QWidget *parent)
     rowLayout->addWidget(deinterlaceCombo);
     mainLayout->addWidget(row);
 
-    /* ────────────────────────────────────────────────
-       2) FILA: RADIO BUTTONS
-       ──────────────────────────────────────────────── */
     QWidget *fieldRow = new QWidget(this);
     auto *fieldLayout = new QHBoxLayout(fieldRow);
     fieldLayout->setContentsMargins(0, 0, 0, 0);
@@ -69,14 +60,14 @@ VideoSettings::VideoSettings(QWidget *parent)
 
     topField->setChecked(true);
 
+    topFieldBtn = topField;
+    bottomFieldBtn = bottomField;
+
     fieldLayout->addWidget(topField);
     fieldLayout->addWidget(bottomField);
 
     mainLayout->addWidget(fieldRow);
 
-    /* ────────────────────────────────────────────────
-       3) MOSTRAR / OCULTAR RADIO BUTTONS
-       ──────────────────────────────────────────────── */
     auto updateFieldVisibility = [fieldRow, this]() {
         bool enabled = (deinterlaceCombo->currentData().toInt() != OBS_DEINTERLACE_MODE_DISABLE);
         fieldRow->setVisible(enabled);
@@ -85,21 +76,26 @@ VideoSettings::VideoSettings(QWidget *parent)
     connect(deinterlaceCombo, &QComboBox::currentIndexChanged, this,
             [this, updateFieldVisibility](int index) {
 
-                // ✔️ SIEMPRE actualizar OBS, incluso sin modelo
                 if (model) {
                     obs_source_t *src = model->selectedSource();
                     if (src) {
                         int mode = deinterlaceCombo->itemData(index).toInt();
-                        obs_source_set_deinterlace_mode(src, (obs_deinterlace_mode)mode);
+                        obs_deinterlace_mode old =
+                            obs_source_get_deinterlace_mode(src);
+
+                        if ((int)old != mode) {
+                            obs_source_set_deinterlace_mode(
+                                src, (obs_deinterlace_mode)mode);
+                            model->pushSourcePropUndo("UndoDeinterlace", src,
+                                                      "deinterlace_mode",
+                                                      old, mode, false);
+                        }
                     }
                 }
 
                 updateFieldVisibility();
             });
 
-    /* ────────────────────────────────────────────────
-       4) CAMBIO DE ORDEN DE CAMPO
-       ──────────────────────────────────────────────── */
     connect(topField, &QRadioButton::toggled, this,
             [this](bool checked) {
                 if (!checked)
@@ -107,8 +103,19 @@ VideoSettings::VideoSettings(QWidget *parent)
 
                 if (model) {
                     obs_source_t *src = model->selectedSource();
-                    if (src)
-                        obs_source_set_deinterlace_field_order(src, OBS_DEINTERLACE_FIELD_ORDER_TOP);
+                    if (!src)
+                        return;
+
+                    obs_deinterlace_field_order old =
+                        obs_source_get_deinterlace_field_order(src);
+                    if (old == OBS_DEINTERLACE_FIELD_ORDER_TOP)
+                        return;
+
+                    obs_source_set_deinterlace_field_order(
+                        src, OBS_DEINTERLACE_FIELD_ORDER_TOP);
+                    model->pushSourcePropUndo(
+                        "UndoDeinterlaceOrder", src, "deinterlace_order",
+                        old, OBS_DEINTERLACE_FIELD_ORDER_TOP, false);
                 }
             });
 
@@ -119,18 +126,25 @@ VideoSettings::VideoSettings(QWidget *parent)
 
                 if (model) {
                     obs_source_t *src = model->selectedSource();
-                    if (src)
-                        obs_source_set_deinterlace_field_order(src, OBS_DEINTERLACE_FIELD_ORDER_BOTTOM);
+                    if (!src)
+                        return;
+
+                    obs_deinterlace_field_order old =
+                        obs_source_get_deinterlace_field_order(src);
+                    if (old == OBS_DEINTERLACE_FIELD_ORDER_BOTTOM)
+                        return;
+
+                    obs_source_set_deinterlace_field_order(
+                        src, OBS_DEINTERLACE_FIELD_ORDER_BOTTOM);
+                    model->pushSourcePropUndo(
+                        "UndoDeinterlaceOrder", src, "deinterlace_order",
+                        old, OBS_DEINTERLACE_FIELD_ORDER_BOTTOM, false);
                 }
             });
 
-    // Estado inicial
     fieldRow->setVisible(false);
 }
 
-/* ────────────────────────────────────────────────
-   CONECTAR EL MODELO
-   ──────────────────────────────────────────────── */
 void VideoSettings::setModel(EditorModel *m)
 {
     model = m;
@@ -148,5 +162,14 @@ void VideoSettings::setModel(EditorModel *m)
                 int index = deinterlaceCombo->findData((int)mode);
                 if (index >= 0)
                     deinterlaceCombo->setCurrentIndex(index);
+
+                obs_deinterlace_field_order order =
+                    obs_source_get_deinterlace_field_order(src);
+                if (bottomFieldBtn)
+                    bottomFieldBtn->setChecked(
+                        order == OBS_DEINTERLACE_FIELD_ORDER_BOTTOM);
+                if (topFieldBtn)
+                    topFieldBtn->setChecked(
+                        order != OBS_DEINTERLACE_FIELD_ORDER_BOTTOM);
             });
 }

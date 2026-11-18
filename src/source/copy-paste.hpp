@@ -15,6 +15,10 @@ public:
 
     void setModel(EditorModel *m) { model = m; }
 
+    bool hasClipboard() const;
+
+    void refreshStates();
+
 private:
     EditorModel *model = nullptr;
 

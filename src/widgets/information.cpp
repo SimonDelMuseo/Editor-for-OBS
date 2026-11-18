@@ -6,9 +6,6 @@
 #include <QFrame>
 #include <obs-module.h>
 
-/* ────────────────────────────────────────────────
-   CONSTRUCTOR — 4 CAJAS CENTRADAS PARA EL FOOTER
-   ──────────────────────────────────────────────── */
 Information::Information(QWidget *parent)
     : QWidget(parent)
 {
@@ -17,13 +14,9 @@ Information::Information(QWidget *parent)
     mainLayout->setSpacing(0);
     mainLayout->setAlignment(Qt::AlignCenter);
 
-    /* ============================================================
-       FUNCIÓN AUXILIAR PARA CREAR UNA CAJA (SIN BORDES)
-       ============================================================ */
     auto createBox = [&](QLabel *&label, const QString &emoji) {
         QWidget *box = new QWidget(this);
 
-        // ⭐ Sin estilos, sin bordes, sin separadores
         box->setStyleSheet("border: none;");
 
         auto *boxLayout = new QHBoxLayout(box);
@@ -38,27 +31,18 @@ Information::Information(QWidget *parent)
         return box;
     };
 
-    /* ============================================================
-       CREACIÓN DE LAS 4 CAJAS (TODAS LIMPIAS)
-       ============================================================ */
 
     QWidget *boxType     = createBox(typeLabel,   "🧩");
     QWidget *boxOriginal = createBox(sizeLabel,   "📐");
     QWidget *boxScaled   = createBox(scaledLabel, "🔍");
     QWidget *boxUsed     = createBox(usedLabel,   "🗂️");
 
-    /* ============================================================
-       AÑADIR LAS 4 CAJAS AL LAYOUT PRINCIPAL
-       ============================================================ */
     mainLayout->addWidget(boxType);
     mainLayout->addWidget(boxOriginal);
     mainLayout->addWidget(boxScaled);
     mainLayout->addWidget(boxUsed);
 }
 
-/* ────────────────────────────────────────────────
-   MÉTODO — ACTUALIZAR INFORMACIÓN
-   ──────────────────────────────────────────────── */
 void Information::updateInfo(const QString &name,
                              const QString &type,
                              const QString &size,

@@ -4,54 +4,47 @@ project(E33-Editor)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Qt: metaobjeto, UI y recursos automáticos
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-# Flags obligatorios para Qt6 + MSVC
-add_compile_options(/permissive- /Zc:__cplusplus)
+if (MSVC)
+    add_compile_options(/permissive- /Zc:__cplusplus)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE
+        "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
+endif()
 
-# Rutas
-set(OBS_PATH "E:/OBS-PLUGIN/obs-studio-32.1")
-set(OBS_BUILD "${OBS_PATH}/build")
-set(QT6_PATH "C:/Qt/6.8.3/msvc2022_64")
+set(OBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../obs-studio-33" CACHE PATH
+    "Codigo fuente de OBS Studio")
+set(OBS_BUILD "${OBS_PATH}/build_x64" CACHE PATH
+    "Directorio build de OBS Studio")
+set(QT6_PATH "C:/Qt/6.11.1/msvc2022_64" CACHE PATH
+    "Instalacion de Qt6 (carpeta msvc2022_64)")
 
-# Para que find_package encuentre Qt6
 set(CMAKE_PREFIX_PATH "${QT6_PATH}")
 
-# Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
-# INCLUDES
-include_directories(
-    "${OBS_PATH}/libobs"
-    "${OBS_PATH}/frontend/api"
+add_library(libobs SHARED IMPORTED)
+set_target_properties(libobs PROPERTIES
+    IMPORTED_LOCATION "${OBS_BUILD}/libobs/Release/obs.dll"
+    IMPORTED_IMPLIB   "${OBS_BUILD}/libobs/Release/obs.lib"
+    INTERFACE_INCLUDE_DIRECTORIES
+        "${OBS_PATH}/libobs;${OBS_BUILD}/libobs")
 
-    "${OBS_BUILD}/libobs"
-    "${OBS_BUILD}/frontend/api"
-    "${OBS_BUILD}/config"
+add_library(obs-frontend-api SHARED IMPORTED)
+set_target_properties(obs-frontend-api PROPERTIES
+    IMPORTED_LOCATION "${OBS_BUILD}/frontend/api/Release/obs-frontend-api.dll"
+    IMPORTED_IMPLIB   "${OBS_BUILD}/frontend/api/Release/obs-frontend-api.lib"
+    INTERFACE_INCLUDE_DIRECTORIES
+        "${OBS_PATH}/frontend/api;${OBS_BUILD}/frontend/api;${OBS_BUILD}/config")
 
-    "${QT6_PATH}/include"
-    "${QT6_PATH}/include/QtCore"
-    "${QT6_PATH}/include/QtGui"
-    "${QT6_PATH}/include/QtWidgets"
-
-    .
-)
-
-# DIRECTORIOS DE LIBRERÍAS
-link_directories(
-    "${OBS_BUILD}/libobs/Release"
-    "${OBS_BUILD}/frontend/api/Release"
-)
-
-# ============================================================
-# LIBRERÍA DEL PLUGIN
-# ============================================================
 add_library(E33-Editor SHARED
     plugin.cpp
     plugin.hpp
+
+    resources.qrc
 
     editor-dock.cpp
     editor-dock.hpp
@@ -68,11 +61,9 @@ add_library(E33-Editor SHARED
     editor-ui-helpers.cpp
     editor-ui-helpers.hpp
 
-    # SOURCE TAB
     src/source/source-tab.cpp
     src/source/source-tab.hpp
 
-    # Contenido Source
     src/source/copy-paste.cpp
     src/source/copy-paste.hpp
 
@@ -91,7 +82,6 @@ add_library(E33-Editor SHARED
     src/source/audio-settings.cpp
     src/source/audio-settings.hpp
 
-    # PROPERTIES TAB
     src/properties/double-slider.cpp
     src/properties/double-slider.hpp
 
@@ -117,11 +107,9 @@ add_library(E33-Editor SHARED
     src/properties/vertical-scroll-area.cpp
     src/properties/vertical-scroll-area.hpp
 
-    # TRANSFORM TAB
     src/transform/transform-tab.cpp
     src/transform/transform-tab.hpp
 
-    # Contenido Transform
     src/transform/alignment.cpp
     src/transform/alignment.hpp
 
@@ -143,15 +131,23 @@ add_library(E33-Editor SHARED
     src/transform/quick.cpp
     src/transform/quick.hpp
 
-    # SOURCE FILTERS TAB
     src/filters/filters-tab.cpp
     src/filters/filters-tab.hpp
 
-    # SCENE FILTERS TAB
     src/scene-filters/scene-filters-tab.cpp
     src/scene-filters/scene-filters-tab.hpp
 
-    # Contenido FILTERS TABS
+    src/notes/notes-tab-scene.cpp
+    src/notes/notes-tab-scene.hpp
+    src/notes/notes-tab-source.cpp
+    src/notes/notes-tab-source.hpp
+
+    src/notes/menu-context.cpp
+    src/notes/menu-context.hpp
+
+    src/notes/edit-note-bar.cpp
+    src/notes/edit-note-bar.hpp
+
     src/filters-files/filters-copy-paste.cpp
     src/filters-files/filters-copy-paste.hpp
     
@@ -170,9 +166,11 @@ add_library(E33-Editor SHARED
     src/filters-files/filters-window.cpp
     src/filters-files/filters-window.hpp
     
-    # WIDGETS
     src/widgets/alignment-grid.cpp
     src/widgets/alignment-grid.hpp
+
+    src/widgets/e33-spinbox.cpp
+    src/widgets/e33-spinbox.hpp
 
     src/widgets/box-filters.cpp
     src/widgets/box-filters.hpp
@@ -191,19 +189,34 @@ add_library(E33-Editor SHARED
 
     src/widgets/information.cpp
     src/widgets/information.hpp    
+    src/widgets/preview-source.cpp
+    src/widgets/preview-source.hpp
+
+    src/widgets/sign.cpp
+    src/widgets/sign.hpp
 )
 
-# FLAGS DEL TARGET
-target_compile_options(E33-Editor PRIVATE
-    /permissive-
-    /Zc:__cplusplus
-)
+target_include_directories(E33-Editor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
-# ENLACE
-target_link_libraries(E33-Editor
-    obs.lib
+target_link_libraries(E33-Editor PRIVATE
+    libobs
     obs-frontend-api
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
 )
+
+set(OBS_INSTALL_PATH "C:/Program Files/obs-studio" CACHE PATH
+    "Carpeta de instalacion de OBS Studio")
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${OBS_INSTALL_PATH}" CACHE PATH
+        "Prefijo de instalacion" FORCE)
+endif()
+
+install(TARGETS E33-Editor
+    RUNTIME DESTINATION "obs-plugins/64bit"
+    LIBRARY DESTINATION "obs-plugins/64bit"
+    ARCHIVE DESTINATION "lib")
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/obs-plugins/E33-Editor"
+        DESTINATION "data/obs-plugins")

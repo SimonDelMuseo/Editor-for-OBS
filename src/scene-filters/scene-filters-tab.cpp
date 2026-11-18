@@ -33,7 +33,6 @@ SceneFiltersTab::SceneFiltersTab(EditorModel *model, QWidget *parent)
     scrollArea->setWidget(scrollWidget);
     mainLayout->addWidget(scrollArea);
 
-    /* MODELO + RENDERERS */
     filtersModel    = new FiltersModel(this);
     filtersRenderer = new FiltersRenderer(this);
     filtersState    = new FiltersState(this);
@@ -41,14 +40,12 @@ SceneFiltersTab::SceneFiltersTab(EditorModel *model, QWidget *parent)
 
     filtersRenderer->setModel(filtersModel);
 
-    /* CONEXIONES DE MOVER ARRIBA/ABAJO */
     connect(filtersRenderer, &FiltersRenderer::moveFilterUpRequested,
             filtersModel,    &FiltersModel::moveFilterUp);
 
     connect(filtersRenderer, &FiltersRenderer::moveFilterDownRequested,
             filtersModel,    &FiltersModel::moveFilterDown);
 
-            /* 🔥 NUEVO: CONEXIONES COPIAR / PEGAR */
     connect(filtersRenderer, &FiltersRenderer::copyRequested,
             filtersModel,    [this](int index) {
                 filtersModel->copyFilter(index);
@@ -59,15 +56,19 @@ SceneFiltersTab::SceneFiltersTab(EditorModel *model, QWidget *parent)
                 filtersModel->pasteFilter(index);
             });
             
-    /* LISTA DE FILTROS */
     formLayout->addRow(filtersRenderer);
 
-    /* PROPIEDADES DEL FILTRO SELECCIONADO */
     formLayout->addRow(properRenderer);
 
     if (model) {
         connect(model, &EditorModel::modelUpdated,
                 this, &SceneFiltersTab::refreshUI);
+
+        connect(model, &EditorModel::filtersChangedExternally, this,
+                [this]() {
+                    if (filtersModel && lastSource)
+                        filtersModel->setSource(lastSource);
+                });
     }
 
     refreshUI();
@@ -80,7 +81,6 @@ void SceneFiltersTab::refreshUI()
 
     obs_source_t *sceneSource = model->currentSceneSource();
 
-    // Si la escena ha cambiado → reconstruir
     if (sceneSource != lastSource) {
         lastSource = sceneSource;
         filtersModel->setSource(sceneSource);
@@ -88,7 +88,6 @@ void SceneFiltersTab::refreshUI()
         return;
     }
 
-    // Misma escena → actualizar propiedades
     if (sceneSource) {
         properRenderer->updateValues();
     }

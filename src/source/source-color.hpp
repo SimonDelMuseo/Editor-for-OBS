@@ -11,19 +11,20 @@ class SourceColor : public QWidget
 public:
     explicit SourceColor(QWidget *parent = nullptr);
 
-    /* Sincronizar preset actual (0 = ninguno, 1..8 = presets OBS) */
     void setCurrentPreset(int presetIndex);
 
+    void setTrashEnabled(bool on);
+
 signals:
-    void presetSelected(int presetIndex);  // ← NUEVO
-    void colorRequested();                 // Custom color
+    void presetSelected(int presetIndex);
+    void colorRequested();
 
 private:
     QPushButton *colorButtons[8] = { nullptr };
     QPushButton *buttonSelect = nullptr;
     QPushButton *buttonTrash  = nullptr;
 
-    int activePresetIndex = 0; // 0 = sin color, 1..8 = presets
+    int activePresetIndex = 0;
 
     void updatePresetButtonsVisual();
 };

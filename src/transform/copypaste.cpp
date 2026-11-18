@@ -13,17 +13,11 @@ CopyPasteBox::CopyPasteBox(QWidget *parent)
 {
     auto *box = new Box(this);
 
-    /* ────────────────────────────────────────────────
-       LAYOUT HORIZONTAL PARA LOS 3 BOTONES
-       ──────────────────────────────────────────────── */
     auto *h = new QHBoxLayout();
     h->setContentsMargins(0, 0, 0, 0);
     h->setSpacing(10);
 
-    /* ────────────────────────────────────────────────
-       BOTÓN: COPY TRANSFORM
-       ──────────────────────────────────────────────── */
-    auto *btnCopy = new QPushButton(box);
+    btnCopy = new QPushButton(box);
     btnCopy->setObjectName("copyButton");
     btnCopy->setFixedHeight(28);
     btnCopy->setIconSize(QSize(18, 18));
@@ -34,10 +28,7 @@ CopyPasteBox::CopyPasteBox(QWidget *parent)
         editorui::GetIconPath("Copy.svg").c_str()
     );
 
-    /* ────────────────────────────────────────────────
-       BOTÓN: PASTE TRANSFORM
-       ──────────────────────────────────────────────── */
-    auto *btnPaste = new QPushButton(box);
+    btnPaste = new QPushButton(box);
     btnPaste->setObjectName("pasteButton");
     btnPaste->setFixedHeight(28);
     btnPaste->setIconSize(QSize(18, 18));
@@ -48,10 +39,7 @@ CopyPasteBox::CopyPasteBox(QWidget *parent)
         editorui::GetIconPath("Paste.svg").c_str()
     );
 
-    /* ────────────────────────────────────────────────
-       BOTÓN: RESET TRANSFORM
-       ──────────────────────────────────────────────── */
-    auto *btnReset = new QPushButton(box);
+    btnReset = new QPushButton(box);
     btnReset->setObjectName("resetButton");
     btnReset->setFixedHeight(28);
     btnReset->setIconSize(QSize(18, 18));
@@ -62,31 +50,29 @@ CopyPasteBox::CopyPasteBox(QWidget *parent)
         editorui::GetIconPath("Reset.svg").c_str()
     );
 
-    /* ────────────────────────────────────────────────
-       AÑADIR BOTONES AL LAYOUT
-       ──────────────────────────────────────────────── */
     h->addWidget(btnCopy);
     h->addWidget(btnPaste);
     h->addWidget(btnReset);
 
-    /* ────────────────────────────────────────────────
-       INSERTAR EN EL BOX
-       ──────────────────────────────────────────────── */
     auto *inner = qobject_cast<QVBoxLayout*>(box->layout());
     if (inner)
         inner->addLayout(h);
 
-    /* ────────────────────────────────────────────────
-       LAYOUT PRINCIPAL DEL WIDGET
-       ──────────────────────────────────────────────── */
     auto *main = new QVBoxLayout(this);
     main->setContentsMargins(0, 0, 0, 0);
     main->addWidget(box);
 
-    /* ────────────────────────────────────────────────
-       CONEXIONES → SEÑALES
-       ──────────────────────────────────────────────── */
     connect(btnCopy,  &QPushButton::clicked, this, &CopyPasteBox::copyTransform);
     connect(btnPaste, &QPushButton::clicked, this, &CopyPasteBox::pasteTransform);
     connect(btnReset, &QPushButton::clicked, this, &CopyPasteBox::resetTransform);
+}
+
+void CopyPasteBox::setStatesEnabled(bool copy, bool paste, bool reset)
+{
+    if (btnCopy)
+        btnCopy->setEnabled(copy);
+    if (btnPaste)
+        btnPaste->setEnabled(paste);
+    if (btnReset)
+        btnReset->setEnabled(reset);
 }

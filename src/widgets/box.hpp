@@ -7,4 +7,7 @@ class Box : public QFrame
 
 public:
     explicit Box(QWidget *parent = nullptr);
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
 };

@@ -2,7 +2,7 @@
 #include <QWidget>
 
 class QDoubleSpinBox;
-class AlignmentGrid;
+class AlignmentSelector;
 
 class EditPosition : public QWidget
 {
@@ -10,11 +10,11 @@ class EditPosition : public QWidget
 public:
     explicit EditPosition(QWidget *parent = nullptr);
 
-    /* Métodos para refrescar valores desde el modelo */
     void setPosition(double x, double y);
     void setSize(double w, double h);
     void setRotation(double rot);
     void setAlignment(int index);
+    void setSizesEnabled(bool enabled);
 
 signals:
     void posXChanged(double);
@@ -28,7 +28,6 @@ signals:
     void alignmentChanged(int);
 
 private:
-    /* Guardamos punteros a los widgets */
     QDoubleSpinBox *spinX = nullptr;
     QDoubleSpinBox *spinY = nullptr;
 
@@ -37,7 +36,5 @@ private:
 
     QDoubleSpinBox *spinRot = nullptr;
 
-    AlignmentGrid *grid = nullptr;
-
-    bool blockSignalsFlag = false;
+    AlignmentSelector *grid = nullptr;
 };

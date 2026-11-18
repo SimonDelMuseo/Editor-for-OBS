@@ -18,16 +18,16 @@ public:
         Audio
     };
 
-    // Cambiar borde de botones según categoría activa
     void setActiveCategory(FilterCategory category);
 
-    // 🔥 NUEVO — consultar categoría activa
     FilterCategory activeCategory() const { return currentCategory; }
 
-    // Activar/desactivar botón AudioFilters
     void updateAudioButtonState(bool enabled);
 
     void disableAudioCategory();
+
+    void setStatesEnabled(bool add, bool remove, bool copy, bool paste,
+                          bool effects, bool audio);
 
 signals:
     void addFilterRequested();
@@ -42,27 +42,22 @@ signals:
     void selectAllRequested(bool selected);
     void popoutAllRequested();
 
-    // Cambio de categoría (Effect / Audio)
     void categoryChanged(FilterCategory category);
 
 private:
-    // Línea 1 (todos QToolButton)
     QPushButton *btnAdd      = nullptr;
     QPushButton *btnRemove   = nullptr;
     QPushButton *btnCopy     = nullptr;
     QPushButton *btnPaste    = nullptr;
 
-    // Línea 2 — botones de texto (QToolButton)
     QToolButton *btnEffects  = nullptr;
     QToolButton *btnAudio    = nullptr;
 
-    // Línea 2 — botones tipo OBS (QCheckBox / QPushButton)
     QCheckBox   *btnExpand      = nullptr;
     QCheckBox   *btnVisibility  = nullptr;
     QCheckBox   *btnSelectAll   = nullptr;
     QPushButton *btnPopoutAll   = nullptr;
 
-    // 🔥 NUEVO — estado interno de la categoría actual
     FilterCategory currentCategory = FilterCategory::Effect;
 
     void setupButton(QToolButton *btn, const QString &icon, const QString &tooltip);

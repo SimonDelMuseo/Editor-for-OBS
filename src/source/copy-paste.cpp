@@ -14,9 +14,6 @@ extern "C" {
 #include <obs.h>
 }
 
-/* ────────────────────────────────────────────────
-   CLIPBOARD GLOBAL — FUENTES
-   ──────────────────────────────────────────────── */
 static obs_source_t *g_clipboardSource = nullptr;
 static bool g_hasSourceClipboard = false;
 
@@ -68,28 +65,22 @@ CopyPaste::CopyPaste(QWidget *parent)
     auto *boxLayout = qobject_cast<QVBoxLayout *>(box->layout());
     if (boxLayout) {
         boxLayout->addLayout(layout);
-        //boxLayout->setAlignment(layout, Qt::AlignVCenter);
     }
 
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->addWidget(box);
 
-     /* ────────────────────────────────────────────────
-       SINCRONIZAR CON CAMBIO DE ESCENA
-       ──────────────────────────────────────────────── */
     connect(model, &EditorModel::sceneChanged, this, [this]() {
-        // No hace falta hacer nada, solo recibir el evento
     });
 
-    /* ────────────────────────────────────────────────
-       COPIAR 
-       ──────────────────────────────────────────────── */
     connect(btnCopy, &QPushButton::clicked, this, [this]() {
         if (!model)
             return;
 
-        // Usamos directamente las variables internas del modelo
+        if (editorui::TriggerNativeAction("actionCopySource"))
+            return;
+
         obs_sceneitem_t *si = model->currentSceneItem();
         if (!si)
             return;
@@ -98,77 +89,70 @@ CopyPaste::CopyPaste(QWidget *parent)
         if (!src)
             return;
 
-        // Limpiar portapapeles anterior
         if (g_clipboardSource) {
             obs_source_release(g_clipboardSource);
             g_clipboardSource = nullptr;
         }
 
-        // Guardar nueva referencia
         obs_source_get_ref(src);
         g_clipboardSource = src;
 
         g_hasSourceClipboard = true;
     });
 
-    /* ────────────────────────────────────────────────
-    PEGAR REFERENCIA 
-    ──────────────────────────────────────────────── */
     connect(btnPasteRef, &QPushButton::clicked, this, [this]() {
         if (!model)
+            return;
+
+        if (editorui::TriggerNativeAction("actionPasteRef"))
             return;
 
         if (!g_hasSourceClipboard || !g_clipboardSource)
             return;
 
-        // Item seleccionado actual
-        //obs_sceneitem_t *si = model->currentSceneItem();
-        //if (!si)
-           //return;
+        if (obs_source_is_group(g_clipboardSource))
+            return;
 
-        // Escena actual
+
         obs_scene_t *scene = model->currentScene();
         if (!scene)
             return;
 
-        // ⭐ NECESARIO PARA PERMITIR PEGAR REFERENCIA EN OTRA ESCENA
         obs_source_get_ref(g_clipboardSource);
 
-        // Pegar referencia
         obs_sceneitem_t *newItem =
             obs_scene_add(scene, g_clipboardSource);
 
-        // Liberar ref extra
         obs_source_release(g_clipboardSource);
 
         if (!newItem)
             return;
 
-        // Seleccionar el nuevo item
         model->setSelectedItem(newItem);
     });
 
 
-    /* ────────────────────────────────────────────────
-    PEGAR DUPLICADO 
-    ──────────────────────────────────────────────── */
     connect(btnPasteDup, &QPushButton::clicked, this, [this]() {
         if (!model)
+            return;
+
+        if (editorui::TriggerNativeAction("actionPasteDup"))
             return;
 
         if (!g_clipboardSource)
             return;
 
-        // 1) Obtener escena actual desde el modelo
+        if (obs_source_get_output_flags(g_clipboardSource) &
+            OBS_SOURCE_DO_NOT_DUPLICATE)
+            return;
+
         obs_scene_t *scene = model->currentScene();
         if (!scene)
             return;
 
-        // 2) Nombre base del original
         const char *origName = obs_source_get_name(g_clipboardSource);
         QString baseName = QString::fromUtf8(origName);
 
-        // 3) Buscar nombres existentes en la escena
         int maxIndex = 1;
 
         QPair<QString,int> nameData(baseName, maxIndex);
@@ -187,13 +171,11 @@ CopyPaste::CopyPaste(QWidget *parent)
 
                 QString name = QString::fromUtf8(obs_source_get_name(src));
 
-                // Coincide exactamente → "Copiloto"
                 if (name == base) {
                     maxIdx = std::max(maxIdx, 2);
                     return true;
                 }
 
-                // Coincide con patrón "Copiloto X"
                 if (name.startsWith(base + " ")) {
                     bool ok = false;
                     int num = name.mid(base.length() + 1).toInt(&ok);
@@ -208,11 +190,9 @@ CopyPaste::CopyPaste(QWidget *parent)
 
         maxIndex = nameData.second;
 
-        // 4) Nombre final único
         QString finalName = QString("%1 %2").arg(baseName).arg(maxIndex);
 ;
 
-        // 5) Crear duplicado con nombre único a partir de settings
 
         const char *source_id = obs_source_get_id(g_clipboardSource);
         obs_data_t *settings = obs_source_get_settings(g_clipboardSource);
@@ -229,16 +209,60 @@ CopyPaste::CopyPaste(QWidget *parent)
         if (!dupSource)
             return;
 
-        // 6) Añadir a la escena
         obs_sceneitem_t *newItem = obs_scene_add(scene, dupSource);
         obs_source_release(dupSource);
 
         if (!newItem)
             return;
 
-        // 7) Seleccionar el nuevo item
         model->setSelectedItem(newItem);
 
     });
 
+    connect(btnCopy, &QPushButton::clicked,
+            this, &CopyPaste::refreshStates);
+}
+
+bool CopyPaste::hasClipboard() const
+{
+    QAction *pasteRef = editorui::FindNativeAction("actionPasteRef");
+    if (pasteRef && pasteRef->isEnabled())
+        return true;
+    QAction *pasteDup = editorui::FindNativeAction("actionPasteDup");
+    if (pasteDup && pasteDup->isEnabled())
+        return true;
+
+    return g_hasSourceClipboard && g_clipboardSource != nullptr;
+}
+
+void CopyPaste::refreshStates()
+{
+    if (!model)
+        return;
+
+    const bool hasSelection = model->selectedItem() != nullptr;
+
+    QAction *nativeRef = editorui::FindNativeAction("actionPasteRef");
+    QAction *nativeDup = editorui::FindNativeAction("actionPasteDup");
+
+    const bool nativeClip = (nativeRef && nativeRef->isEnabled()) ||
+                            (nativeDup && nativeDup->isEnabled());
+
+    bool refOk, dupOk;
+    if (nativeClip) {
+        refOk = nativeRef && nativeRef->isEnabled();
+        dupOk = nativeDup && nativeDup->isEnabled();
+    } else {
+        const bool own = g_hasSourceClipboard && g_clipboardSource;
+        refOk = own && !obs_source_is_group(g_clipboardSource);
+        dupOk = own && !(obs_source_get_output_flags(g_clipboardSource) &
+                         OBS_SOURCE_DO_NOT_DUPLICATE);
+    }
+
+    if (btnCopy)
+        btnCopy->setEnabled(hasSelection);
+    if (btnPasteRef)
+        btnPasteRef->setEnabled(refOk);
+    if (btnPasteDup)
+        btnPasteDup->setEnabled(dupOk);
 }

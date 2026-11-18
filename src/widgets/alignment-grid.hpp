@@ -1,26 +1,51 @@
 #pragma once
-#include <QWidget>
-#include <QPushButton>
-#include <array>
 
-class AlignmentGrid : public QWidget
+#include <QFocusEvent>
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QPaintEvent>
+#include <QWidget>
+
+
+class AlignmentSelector : public QWidget
 {
     Q_OBJECT
+
 public:
-    explicit AlignmentGrid(QWidget *parent = nullptr);
+    explicit AlignmentSelector(QWidget *parent = nullptr);
 
-    void setSelected(int index);   // 0–8
-    int  selected() const { return currentIndex; }
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 
-    /* NUEVO — permite apagar/encender el grid */
+    void setSelected(int index);
     void setButtonsEnabled(bool enabled);
+
+    int currentIndex() const;
+    Qt::Alignment value() const;
 
 signals:
     void alignmentChanged(int index);
 
-private:
-    std::array<QPushButton*, 9> buttons {};
-    int currentIndex = -1;
+protected:
+    void paintEvent(QPaintEvent *event) override;
+    void leaveEvent(QEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void focusInEvent(QFocusEvent *event) override;
+    void focusOutEvent(QFocusEvent *event) override;
 
-    void updateSelection();
+private:
+    int hoveredCell  = -1;
+    int focusedCell  = 4;
+    int selectedCell = 4;
+
+    Qt::Alignment alignmentMembers = Qt::AlignTop | Qt::AlignLeft;
+
+    QRect gridRect() const;
+    QRect cellRect(int index) const;
+    Qt::Alignment cellAlignment(int index) const;
+    void moveFocusedCell(int moveX, int moveY);
+    void setFocusedCell(int cell);
+    void selectCell(int cell);
 };

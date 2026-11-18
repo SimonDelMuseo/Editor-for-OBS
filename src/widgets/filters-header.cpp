@@ -16,19 +16,13 @@ FiltersHeader::FiltersHeader(QWidget *parent)
 {
     setObjectName("E33_FiltersHeader");
 
-    setFrameShape(QFrame::StyledPanel);
+    setFrameShape(QFrame::NoFrame);
     setFrameShadow(QFrame::Plain);
 
-    // ============================================================
-    // LAYOUT PRINCIPAL (UNA SOLA LÍNEA)
-    // ============================================================
     auto *mainLayout = new QHBoxLayout(this);
     mainLayout->setContentsMargins(14, 2, 14, 2);
     mainLayout->setSpacing(6);
 
-    // ============================================================
-    // IZQUIERDA — expandir / colapsar
-    // ============================================================
 
     btnExpand = new QCheckBox(this);
     btnExpand->setProperty("class", "indicator-expand");
@@ -38,9 +32,6 @@ FiltersHeader::FiltersHeader(QWidget *parent)
 
     mainLayout->addWidget(btnExpand);
 
-    // ============================================================
-    // IZQUIERDA — visibility (mostrar / ocultar)
-    // ============================================================
 
     btnVisibility = new QCheckBox(this);
     btnVisibility->setProperty("class", "indicator-visibility");
@@ -50,16 +41,9 @@ FiltersHeader::FiltersHeader(QWidget *parent)
 
     mainLayout->addWidget(btnVisibility);
 
-    // ============================================================
-    // CENTRO — stretch izquierdo
-    // ============================================================
     mainLayout->addStretch();
 
-    // ============================================================
-    // CENTRO — botones principales
-    // ============================================================
 
-    // Añadir (icono OBS)
     btnAdd = new QPushButton(this);
     btnAdd->setObjectName("btnAdd");
     btnAdd->setProperty("class", "icon-plus");
@@ -67,19 +51,16 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     btnAdd->setIconSize(QSize(14, 14));
     mainLayout->addWidget(btnAdd);
 
-    // Eliminar (icono OBS)
     btnRemove = new QPushButton(this);
     btnRemove->setProperty("class", "icon-trash");
     btnRemove->setFixedSize(26, 26);
     btnRemove->setIconSize(QSize(14, 14));
     mainLayout->addWidget(btnRemove);
 
-    // Botón invisible (espaciador visual)
     auto *btnInvisible1 = new QWidget(this);
     btnInvisible1->setFixedSize(10, 10);
     mainLayout->addWidget(btnInvisible1);
 
-    // Effect (texto traducible + preparado para borde verde/rojo)
     btnEffects = new QToolButton(this);
     btnEffects->setObjectName("effectsButton");
     btnEffects->setText(obs_module_text("EffectFilters"));
@@ -87,7 +68,6 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     btnEffects->setFixedSize(70, 26);
     mainLayout->addWidget(btnEffects);
 
-    // Audio (texto traducible + preparado para borde verde/rojo)
     btnAudio = new QToolButton(this);
     btnAudio->setObjectName("audioButton");
     btnAudio->setText(obs_module_text("AudioFilters"));
@@ -95,12 +75,10 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     btnAudio->setFixedSize(70, 26);
     mainLayout->addWidget(btnAudio);
 
-    // Botón invisible (espaciador visual)
     auto *btnInvisible2 = new QWidget(this);
     btnInvisible2->setFixedSize(10, 10);
     mainLayout->addWidget(btnInvisible2);
 
-    // Copiar (icono OBS)
     btnCopy = new QPushButton(this);
     btnCopy->setProperty("class", "icon-copy");
     btnCopy->setFixedSize(26, 26);
@@ -111,7 +89,6 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     );
     mainLayout->addWidget(btnCopy);
 
-    // Pegar (icono OBS)
     btnPaste = new QPushButton(this);
     btnPaste->setProperty("class", "icon-paste");
     btnPaste->setFixedSize(26, 26);
@@ -122,14 +99,8 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     );
     mainLayout->addWidget(btnPaste);
 
-    // ============================================================
-    // CENTRO — stretch derecho
-    // ============================================================
     mainLayout->addStretch();
 
-    // ============================================================
-    // DERECHA — checkbox + popout
-    // ============================================================
 
     btnSelectAll = new QCheckBox(this);
     btnSelectAll->setObjectName("filterSelectCheck");
@@ -150,55 +121,41 @@ FiltersHeader::FiltersHeader(QWidget *parent)
     );
     mainLayout->addWidget(btnPopoutAll);
 
-    // ============================================================
-    // CONEXIONES — EXPANDIR / COLAPSAR TODOS
-    // ============================================================
 
     connect(btnExpand, &QCheckBox::clicked, this, [this](bool checked) {       
         emit expandCollapseAllRequested(checked);
     });
 
-    // ============================================================
-    // CONEXIONES — VISIBILITY (mostrar / ocultar TODOS)
-    // ============================================================
 
     connect(btnVisibility, &QCheckBox::clicked, this, [this](bool checked) {
         emit visibilityAllRequested(checked);
     });
     
-    // ============================================================
-    // CONEXIONES — AÑADIR FILTRO (botón "+")
-    // ============================================================
 
     connect(btnAdd, &QPushButton::clicked, this, [this]() {
         emit addFilterRequested();
     });
 
-    // ============================================================
-    // CONEXIONES — ELIMINAR FILTRO/S SELECCIONADO/S
-    // ============================================================
 
     connect(btnRemove, &QPushButton::clicked, this, [this]() {
         emit removeFilterRequested();
     });
 
-    // ============================================================
-    // CONEXIONES — CAMBIO DE CATEGORÍA (Effect / Audio)
-    // ============================================================
 
     connect(btnEffects, &QToolButton::clicked, this, [this]() {
-        emit categoryChanged(FilterCategory::Effect);
+        if (currentCategory == FilterCategory::Effect)
+            return;
         setActiveCategory(FilterCategory::Effect);
+        emit categoryChanged(FilterCategory::Effect);
     });
 
     connect(btnAudio, &QToolButton::clicked, this, [this]() {
-        emit categoryChanged(FilterCategory::Audio);
+        if (currentCategory == FilterCategory::Audio)
+            return;
         setActiveCategory(FilterCategory::Audio);
+        emit categoryChanged(FilterCategory::Audio);
     });
 
-    // ============================================================
-    // CONEXIONES - COPIAR PEGAR FILTROS
-    // ============================================================
     connect(btnCopy, &QPushButton::clicked, this, [this]() {
         emit copyRequested();
     });
@@ -207,25 +164,16 @@ FiltersHeader::FiltersHeader(QWidget *parent)
         emit pasteRequested();
     });
 
-    // ============================================================
-    // CONEXIONES — SELECT ALL (seleccionar / deseleccionar TODOS)
-    // ============================================================
 
     connect(btnSelectAll, &QCheckBox::clicked, this, [this](bool checked) {
         emit selectAllRequested(checked);
     });
 
-    // ============================================================
-    // CONEXIONES — POPOUT ALL (abrir todos los filtros)
-    // ============================================================
 
     connect(btnPopoutAll, &QPushButton::clicked, this, [this]() {
         emit popoutAllRequested();
     });
 
-    // ============================================================
-    // ESTADO INICIAL — Effect activo
-    // ============================================================
     setActiveCategory(FilterCategory::Effect);
 }
 
@@ -233,13 +181,21 @@ void FiltersHeader::setActiveCategory(FilterCategory category)
 {
     currentCategory = category;
 
-    if (category == FilterCategory::Effect) {
-        btnEffects->setStyleSheet("border: 2px solid #FF4444;");
-        btnAudio->setStyleSheet("border: 2px solid #16c416;");
-    } else {
-        btnEffects->setStyleSheet("border: 2px solid #16c416;");
-        btnAudio->setStyleSheet("border: 2px solid #FF4444;");
-    }
+    if (btnEffects->isEnabled())
+        btnEffects->setStyleSheet(
+            (category == FilterCategory::Effect)
+                ? "border: 2px solid #FF4444;"
+                : "border: 2px solid #16c416;");
+    else
+        btnEffects->setStyleSheet("border: 1px solid palette(button);");
+
+    if (btnAudio->isEnabled())
+        btnAudio->setStyleSheet(
+            (category == FilterCategory::Audio)
+                ? "border: 2px solid #FF4444;"
+                : "border: 2px solid #16c416;");
+    else
+        btnAudio->setStyleSheet("border: 1px solid palette(button);");
 }
 
 
@@ -248,26 +204,47 @@ void FiltersHeader::updateAudioButtonState(bool enabled)
     btnAudio->setEnabled(enabled);
 
     if (!enabled) {
-        btnAudio->setStyleSheet("border: 2px solid #444;");
+        btnAudio->setStyleSheet("border: 1px solid palette(button);");
         return;
     }
 
-    // Reaplicar estilos según la categoría actual
     setActiveCategory(currentCategory);
 }
 
 void FiltersHeader::disableAudioCategory()
 {
-    // 1) Si la categoría activa es Audio → cambiar primero a Effect
     if (currentCategory == FilterCategory::Audio) {
         setActiveCategory(FilterCategory::Effect);
         emit categoryChanged(FilterCategory::Effect);
     }
 
-    // 2) Ahora sí, desactivar el botón Audio
     btnAudio->setEnabled(false);
 
-    // 3) Forzar borde gris
-    btnAudio->setStyleSheet("border: 2px solid #444;");
+    btnAudio->setStyleSheet("border: 1px solid palette(button);");
+}
+
+void FiltersHeader::setStatesEnabled(bool add, bool remove, bool copy,
+                                     bool paste, bool effects, bool audio)
+{
+    if (btnAdd)
+        btnAdd->setEnabled(add);
+    if (btnRemove)
+        btnRemove->setEnabled(remove);
+    if (btnCopy)
+        btnCopy->setEnabled(copy);
+    if (btnPaste)
+        btnPaste->setEnabled(paste);
+    if (btnEffects) {
+        btnEffects->setEnabled(effects);
+        if (!effects)
+            btnEffects->setStyleSheet("border: 1px solid palette(button);");
+        else
+            btnEffects->setStyleSheet(
+                (currentCategory == FilterCategory::Effect)
+                    ? "border: 2px solid #FF4444;"
+                    : "border: 2px solid #16c416;");
+    }
+
+    updateAudioButtonState(audio);
 }
 

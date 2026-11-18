@@ -1,8 +1,10 @@
 #include "edit-bounds.hpp"
 #include "src/widgets/alignment-grid.hpp"
+#include "src/widgets/e33-spinbox.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -11,24 +13,28 @@
 #include <QFont>
 #include <obs-module.h>
 
-/* Helpers visuales (sin cambios) */
-static QLabel *makeBoldLabelTr(const char *key, QWidget *parent)
+
+static QLabel *makeSubtitleLabel(const char *key, QWidget *parent)
 {
     auto *lbl = new QLabel(obs_module_text(key), parent);
-    QFont f = lbl->font();
-    f.setBold(true);
-    lbl->setFont(f);
+    lbl->setProperty("class", "subtitle");
+    return lbl;
+}
+
+static QLabel *makeFieldLabel(const QString &text, QWidget *parent)
+{
+    auto *lbl = new QLabel(text, parent);
+    lbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     return lbl;
 }
 
 static QDoubleSpinBox *makeSpin(QWidget *parent)
 {
-    auto *spin = new QDoubleSpinBox(parent);
+    auto *spin = new E33DoubleSpinBox(parent);
     spin->setSuffix(" px");
     spin->setDecimals(2);
-    spin->setRange(0, 99999);
-    spin->setFixedWidth(spin->sizeHint().width() - 18);
-    spin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    spin->setRange(1, 90001);
+    spin->setSingleStep(1.0);
     return spin;
 }
 
@@ -37,112 +43,78 @@ EditBounds::EditBounds(QWidget *parent)
 {
     auto *main = new QHBoxLayout(this);
     main->setContentsMargins(0, 0, 0, 0);
-    main->setSpacing(0);
+    main->setSpacing(8);
 
-    /* ────────────────────────────────────────────────
-       CAJA 1 — BOUNDS
-       ──────────────────────────────────────────────── */
-    auto *boxLeft = new QVBoxLayout();
+    auto *boxLeft = new QGridLayout();
+    boxLeft->setHorizontalSpacing(8);
+    boxLeft->setVerticalSpacing(2);
     boxLeft->setContentsMargins(0, 0, 0, 0);
-    boxLeft->setSpacing(4);
 
-    /* Línea 1: Bounds */
-    boxLeft->addWidget(new QLabel(obs_module_text("Bounds"), this));
+    boxLeft->addWidget(makeSubtitleLabel("Bounds", this), 0, 0, 1, 3);
 
-    /* Línea 2: ComboBox */
+    comboType = new QComboBox(this);
+
+    comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.None"));
+    comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.Stretch"));
+    comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleInner"));
+    comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleOuter"));
+    comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleToWidth"));
+    comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleToHeight"));
+    comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.MaxOnly"));
+
+    connect(comboType, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &EditBounds::boundsTypeChanged);
+
+    boxLeft->addWidget(comboType, 1, 0, 1, 3);
+
     {
-        comboType = new QComboBox(this);
-
-        /* Orden REAL de OBS */
-        comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.None"));        // 0
-        comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.Stretch"));     // 1
-        comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleInner"));  // 2
-        comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleOuter"));  // 3
-        comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleToWidth"));// 4
-        comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.ScaleToHeight"));//5
-        comboType->addItem(obs_module_text("Basic.TransformWindow.BoundsType.MaxOnly"));     // 6
-
-        connect(comboType, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &EditBounds::boundsTypeChanged);
-
-        boxLeft->addWidget(comboType);
-    }
-
-    /* Línea 3: Width + spinbox + checkbox */
-    {
-        auto *row = new QHBoxLayout();
-        row->setSpacing(4);
-
-        auto *lbl = makeBoldLabelTr("Width", this);
-        row->addWidget(lbl, 0);
+        boxLeft->addWidget(makeFieldLabel(obs_module_text("Width"), this), 2, 0);
 
         spinW = makeSpin(this);
-        row->addWidget(spinW, 1);
-
+        spinW->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         connect(spinW, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &EditBounds::boundsWidthChanged);
+        boxLeft->addWidget(spinW, 2, 1);
 
         chkCrop = new QCheckBox(obs_module_text("CropBound"), this);
         chkCrop->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        row->addWidget(chkCrop, 0);
-
         connect(chkCrop, &QCheckBox::toggled,
                 this, &EditBounds::cropToBoundsChanged);
-
-        boxLeft->addLayout(row);
+        boxLeft->addWidget(chkCrop, 2, 2);
     }
 
-    /* Línea 4: Height + spinbox + botón fantasma */
     {
-        auto *row = new QHBoxLayout();
-        row->setSpacing(4);
-
-        auto *lbl = makeBoldLabelTr("Height", this);
-        row->addWidget(lbl, 0);
+        boxLeft->addWidget(makeFieldLabel(obs_module_text("Height"), this), 3, 0);
 
         spinH = makeSpin(this);
-        row->addWidget(spinH, 1);
-
+        spinH->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         connect(spinH, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &EditBounds::boundsHeightChanged);
-
-        auto *ghost = new QPushButton(this);
-        ghost->setFlat(true);
-        ghost->setEnabled(false);
-        ghost->setFocusPolicy(Qt::NoFocus);
-        ghost->setStyleSheet("QPushButton { background: transparent; border: none; }");
-        ghost->setFixedWidth(82);
-
-        row->addWidget(ghost, 0);
-
-        boxLeft->addLayout(row);
+        boxLeft->addWidget(spinH, 3, 1);
     }
 
-    /* ────────────────────────────────────────────────
-       CAJA 2 — ALIGNMENT
-       ──────────────────────────────────────────────── */
+
     auto *boxRight = new QVBoxLayout();
-    boxRight->setContentsMargins(6, 0, 0, 0);
+    boxRight->setContentsMargins(0, 0, 0, 0);
     boxRight->setSpacing(4);
 
-    boxRight->addWidget(new QLabel(obs_module_text("Alignment"), this));
+    boxRight->addWidget(makeSubtitleLabel("Alignment", this));
 
     {
         auto *row = new QHBoxLayout();
         row->setSpacing(4);
 
-        grid = new AlignmentGrid(this);
+        grid = new AlignmentSelector(this);
         grid->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         row->addWidget(grid, 0);
 
-        connect(grid, &AlignmentGrid::alignmentChanged,
+        connect(grid, &AlignmentSelector::alignmentChanged,
                 this, &EditBounds::alignmentChanged);
 
         row->addStretch(1);
         boxRight->addLayout(row);
     }
 
-    /* Fantasmas */
     {
         auto *ghost = new QPushButton(this);
         ghost->setFlat(true);
@@ -162,89 +134,87 @@ EditBounds::EditBounds(QWidget *parent)
         boxRight->addWidget(ghost);
     }
 
-    /* ────────────────────────────────────────────────
-       AÑADIR AL LAYOUT PRINCIPAL
-       ──────────────────────────────────────────────── */
     main->addLayout(boxLeft);
     main->addLayout(boxRight);
 
-    main->setStretch(0, 1);
+    main->setStretch(0, 2);
     main->setStretch(1, 1);
 }
 
-/* ────────────────────────────────────────────────
-   MÉTODOS PARA REFRESCAR DESDE EL MODELO
-   ──────────────────────────────────────────────── */
 void EditBounds::setBoundsType(int index)
 {
-    blockSignalsFlag = true;
+    const bool bc = comboType->blockSignals(true);
     comboType->setCurrentIndex(index);
-    blockSignalsFlag = false;
+    comboType->blockSignals(bc);
 
     bool disableGrid  = false;
     bool disableSpin  = false;
     bool disableCrop  = false;
 
     switch (index) {
-    case 0: /* Automatic / None */
+    case 0:
         disableGrid = true;
         disableSpin = true;
         disableCrop = true;
         break;
 
-    case 1: /* Stretch */
+    case 1:
         disableGrid = true;
         disableSpin = false;
         disableCrop = true;
         break;
 
-    case 2: /* Fit (ScaleInner) */
+    case 2:
         disableGrid = false;
         disableSpin = false;
         disableCrop = true;
         break;
 
-    case 3: /* Cover */
-    case 4: /* FillWidth */
-    case 5: /* FillHeight */
-    case 6: /* MaxOnly */
+    case 3:
+    case 4:
+    case 5:
         disableGrid = false;
         disableSpin = false;
         disableCrop = false;
         break;
+
+    case 6:
+        disableGrid = false;
+        disableSpin = false;
+        disableCrop = true;
+        break;
     }
 
-    /* ────────────────────────────────────────────────
-       APLICAR ESTADO AL GRID (VISUAL + INTERACCIÓN)
-       ──────────────────────────────────────────────── */
     grid->setButtonsEnabled(!disableGrid);
 
-    /* Spinboxes */
     spinW->setDisabled(disableSpin);
     spinH->setDisabled(disableSpin);
 
-    /* Crop */
     chkCrop->setDisabled(disableCrop);
 }
 
 void EditBounds::setBoundsSize(double w, double h)
 {
-    blockSignalsFlag = true;
+    const bool bw = spinW->blockSignals(true);
+    const bool bh = spinH->blockSignals(true);
+
     spinW->setValue(w);
     spinH->setValue(h);
-    blockSignalsFlag = false;
+
+    spinW->blockSignals(bw);
+    spinH->blockSignals(bh);
 }
 
 void EditBounds::setCropToBounds(bool enabled)
 {
-    blockSignalsFlag = true;
+    const bool bk = chkCrop->blockSignals(true);
     chkCrop->setChecked(enabled);
-    blockSignalsFlag = false;
+    chkCrop->blockSignals(bk);
 }
 
 void EditBounds::setAlignment(int index)
 {
-    blockSignalsFlag = true;
+    const bool bg = grid->blockSignals(true);
     grid->setSelected(index);
-    blockSignalsFlag = false;
+    grid->blockSignals(bg);
 }

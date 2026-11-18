@@ -2,9 +2,6 @@
 
 static std::vector<CopiedFilterData> gCopiedFilters;
 
-/* ---------------------------------------------------------
-   COPIAR FILTRO DESDE UN SOURCE
-   --------------------------------------------------------- */
 void copyFilterFromSource(obs_source_t *source, size_t index)
 {
     if (!source)
@@ -39,9 +36,6 @@ void copyFilterFromSource(obs_source_t *source, size_t index)
     gCopiedFilters.push_back(cf);
 }
 
-/* ---------------------------------------------------------
-   PEGAR FILTROS COPIADOS EN UN SOURCE DESTINO
-   --------------------------------------------------------- */
 void pasteFiltersToSource(obs_source_t *targetSource, size_t insertIndex)
 {
     if (!targetSource || gCopiedFilters.empty())
@@ -121,9 +115,6 @@ void pasteFiltersToSource(obs_source_t *targetSource, size_t insertIndex)
     }
 }
 
-/* ---------------------------------------------------------
-   LIMPIAR BUFFER GLOBAL
-   --------------------------------------------------------- */
 void clearCopiedFilters()
 {
     for (auto &cf : gCopiedFilters) {

@@ -1,6 +1,3 @@
-/* ────────────────────────────────────────────────
-   INCLUDES
-   ──────────────────────────────────────────────── */
 #include "source-tab.hpp"
 #include "editor-model.hpp"
 
@@ -15,21 +12,20 @@
 #include "video-settings.hpp"
 
 #include <QVBoxLayout>
+#include <QScrollArea>
 #include <QLabel>
 #include <QWidget>
 #include <QColorDialog>
 #include <QCoreApplication>
 #include <QScreen>
 #include <QComboBox>
+#include <QPropertyAnimation>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <obs.h>
 #include <obs-data.h>
 
-/* ────────────────────────────────────────────────
-   COLORES REALES PARA PINTAR (MISMO ORDEN QUE OBS)
-   ──────────────────────────────────────────────── */
 static const char* presetColorsARGB[9] = {
     "",
     "#55FF0000",
@@ -42,96 +38,52 @@ static const char* presetColorsARGB[9] = {
     "#55000000"
 };
 
-/* ────────────────────────────────────────────────
-   CONSTRUCTOR — SIN TÍTULOS Y SIN SEPARADOR
-   ──────────────────────────────────────────────── */
 SourceTab::SourceTab(EditorModel *model, QWidget *parent)
     : QWidget(parent)
     , model(model)
 {
-    auto *mainLayout = new QVBoxLayout(this);
+    auto *outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+
+    auto *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    auto *scrollWidget = new QWidget(scrollArea);
+    auto *mainLayout = new QVBoxLayout(scrollWidget);
 
     mainLayout->setContentsMargins(8, 8, 8, 8);
     mainLayout->setSpacing(4);
 
-    /* COPY / PASTE */
+    scrollArea->setWidget(scrollWidget);
+    outerLayout->addWidget(scrollArea);
+
     copyPaste = new CopyPaste(this);
     copyPaste->setModel(model);
     mainLayout->addWidget(copyPaste);
 
-    /* SOURCE COLOR */
     sourceColor = new SourceColor(this);
     mainLayout->addWidget(sourceColor);
 
-    /* ────────────────────────────────────────────────
-       APLICAR PRESET
-       ──────────────────────────────────────────────── */
     connect(sourceColor, &SourceColor::presetSelected,
     this, [this, model](int preset) {
         if (!model)
             return;
 
-        obs_sceneitem_t *item = model->selectedItem();
-        if (!item)
-            return;
-
-        obs_data_t *priv = obs_sceneitem_get_private_settings(item);
-        if (!priv)
-            return;
-
-        if (preset == 0) {
-            obs_data_set_int(priv, "color-preset", 0);
-        } else {
-            obs_data_set_int(priv, "color-preset", preset + 1);
-        }
-
-        obs_data_release(priv);
-
-        model->setSelectedItem(item);
-
-        obs_source_t *current = obs_frontend_get_current_scene();
-        obs_source_t *fallback = nullptr;
-
-        obs_frontend_source_list scenes = {};
-        obs_frontend_get_scenes(&scenes);
-
-        for (size_t i = 0; i < scenes.sources.num; i++) {
-            if (scenes.sources.array[i] != current) {
-                fallback = scenes.sources.array[i];
-                break;
-            }
-        }
-
-        if (fallback) {
-            obs_frontend_set_current_scene(fallback);
-            obs_frontend_set_current_scene(current);
-        }
-
-        obs_frontend_source_list_free(&scenes);
-        obs_source_release(current);
+        model->applyColorPresetToSelection(preset);
     });
 
-    /* ────────────────────────────────────────────────
-       COLOR PERSONALIZADO (CORREGIDO)
-       ──────────────────────────────────────────────── */
     connect(sourceColor, &SourceColor::colorRequested,
         this, [this, model]() {
             if (!model)
                 return;
 
-            obs_sceneitem_t *item = model->selectedItem();
-            if (!item)
-                return;
-
-            obs_data_t *priv = obs_sceneitem_get_private_settings(item);
-            if (!priv)
-                return;
-
-            const char *oldColor = obs_data_get_string(priv, "color");
-            const char *initial = (oldColor && *oldColor != 0) ? oldColor : "#55FF0000";
-
-            QColorDialog *dlg = new QColorDialog(QColor(initial), this);
+            QColorDialog *dlg = new QColorDialog(this);
+            dlg->setAttribute(Qt::WA_DeleteOnClose);
             dlg->setOption(QColorDialog::ShowAlphaChannel);
+
+            const QColor initial = model->currentItemColor();
+            dlg->setCurrentColor(initial.isValid() ? initial : QColor("#55FF0000"));
 
             connect(dlg, &QColorDialog::colorSelected,
                 this, [this](const QColor &c) {
@@ -139,19 +91,15 @@ SourceTab::SourceTab(EditorModel *model, QWidget *parent)
                 });
 
             dlg->open();
-            obs_data_release(priv);
         });
 
-    /* TRANSITIONS */
     transitions = new Transitions(model, this);
     mainLayout->addWidget(transitions);
 
-    /* IMAGE SETTINGS */
     imageSettings = new ImageSettings(this);
     imageSettings->setModel(model);
     mainLayout->addWidget(imageSettings);
 
-    /* PROYECTOR */
     connect(imageSettings, &ImageSettings::openProjectorOnMonitorRequested,
             this, [this, model](int monitorIndex) {
                 obs_source_t *src = model->selectedSource();
@@ -184,7 +132,6 @@ SourceTab::SourceTab(EditorModel *model, QWidget *parent)
                 );
             });
 
-    /* SCALE FILTERING */
     connect(imageSettings, &ImageSettings::scaleFilteringChanged,
             this, [this, model](const QString &value) {
                 if (!model)
@@ -209,10 +156,15 @@ SourceTab::SourceTab(EditorModel *model, QWidget *parent)
                 else if (value == "area")
                     filter = OBS_SCALE_AREA;
 
+                obs_scale_type old = obs_sceneitem_get_scale_filter(item);
+                if (old == filter)
+                    return;
+
                 obs_sceneitem_set_scale_filter(item, filter);
+                model->pushItemPropUndo("UndoScaleFiltering", item,
+                                        "scale_filter", old, filter, false);
             });
 
-    /* BLENDING MODE */
     connect(imageSettings->blendingModeCombo, &QComboBox::currentIndexChanged,
             this, [this, model](int index) {
                 if (!model)
@@ -234,10 +186,15 @@ SourceTab::SourceTab(EditorModel *model, QWidget *parent)
                 case 6: mode = OBS_BLEND_DARKEN;     break;
                 }
 
+                obs_blending_type old = obs_sceneitem_get_blending_mode(item);
+                if (old == mode)
+                    return;
+
                 obs_sceneitem_set_blending_mode(item, mode);
+                model->pushItemPropUndo("UndoBlendingMode", item,
+                                        "blend_mode", old, mode, false);
             });
 
-    /* BLENDING METHOD */
     connect(imageSettings->blendingMethodCombo, &QComboBox::currentIndexChanged,
             this, [this, model](int index) {
                 if (!model)
@@ -254,21 +211,24 @@ SourceTab::SourceTab(EditorModel *model, QWidget *parent)
                 case 1: method = OBS_BLEND_METHOD_SRGB_OFF;  break;
                 }
 
+                obs_blending_method old = obs_sceneitem_get_blending_method(item);
+                if (old == method)
+                    return;
+
                 obs_sceneitem_set_blending_method(item, method);
+                model->pushItemPropUndo("UndoBlendingMethod", item,
+                                        "blend_method", old, method, false);
             });
 
-    /* VIDEO SETTINGS */
     videoSettings = new VideoSettings(this);
     videoSettings->setModel(model);
     mainLayout->addWidget(videoSettings);
 
-    /* AUDIO SETTINGS */
     audioSettings = new AudioSettings(this);
     mainLayout->addWidget(audioSettings);
 
-    /* GUARDAR CAMBIOS DE AUDIO */
     connect(audioSettings, &AudioSettings::settingsChanged,
-            this, [this]() {
+            this, [this](const QString &undoKey) {
                 if (!this->model)
                     return;
 
@@ -276,10 +236,17 @@ SourceTab::SourceTab(EditorModel *model, QWidget *parent)
                 if (!src)
                     return;
 
+                obs_data_t *before = this->model->captureAudioState(src);
                 this->audioSettings->saveToSource(src);
+                obs_data_t *after = this->model->captureAudioState(src);
+
+                this->model->pushAudioUndo(undoKey.toUtf8().constData(),
+                                           before, after, true);
+
+                obs_data_release(before);
+                obs_data_release(after);
             });
 
-    /* ──────────────────────────────────────────────── */
 
     mainLayout->addStretch();
 
@@ -291,9 +258,6 @@ SourceTab::SourceTab(EditorModel *model, QWidget *parent)
     refreshUI();
 }
 
-/* ────────────────────────────────────────────────
-   REFRESCAR UI
-   ──────────────────────────────────────────────── */
 void SourceTab::refreshUI()
 {
     if (!model)
@@ -302,14 +266,21 @@ void SourceTab::refreshUI()
     obs_source_t *src = model->selectedSource();
 
     if (!src) {
-        transitions->setVisible(false);
-        imageSettings->setVisible(false);
-        videoSettings->setVisible(false);
-        audioSettings->setVisible(false);
+        setContainerVisible(transitions,   false);
+        setContainerVisible(imageSettings, false);
+        setContainerVisible(videoSettings, false);
+        setContainerVisible(audioSettings, false);
+
+        setContainerVisible(sourceColor, false);
+        setContainerVisible(copyPaste, copyPaste->hasClipboard());
+        copyPaste->refreshStates();
         return;
     }
 
-    /* SCALE FILTERING — READ FROM OBS */
+    setContainerVisible(sourceColor, true);
+    setContainerVisible(copyPaste, true);
+    copyPaste->refreshStates();
+
     {
         obs_sceneitem_t *item = model->selectedItem();
         if (item) {
@@ -330,7 +301,6 @@ void SourceTab::refreshUI()
         }
     }
 
-    /* BLENDING MODE — READ FROM OBS */
     {
         obs_sceneitem_t *item = model->selectedItem();
         if (item) {
@@ -353,7 +323,6 @@ void SourceTab::refreshUI()
         }
     }
 
-    /* BLENDING METHOD — READ FROM OBS */
     {
         obs_sceneitem_t *item = model->selectedItem();
         if (item) {
@@ -400,65 +369,87 @@ void SourceTab::refreshUI()
 
     bool showTransitions = isVisual;
 
-    imageSettings->setVisible(showImage);
-    videoSettings->setVisible(showVideo);
-    audioSettings->setVisible(showAudio);
-    transitions->setVisible(showTransitions);
+    setContainerVisible(imageSettings, showImage);
+    setContainerVisible(videoSettings, showVideo);
+    setContainerVisible(audioSettings, showAudio);
+    setContainerVisible(transitions,   showTransitions);
 
-    /* CARGAR AUDIO DESDE OBS */
     if (showAudio)
         audioSettings->loadFromSource(src);
 
     if (sourceColor) {
         int preset = model->currentItemPreset();
         sourceColor->setCurrentPreset(preset - 1);
+
+        const bool hasColor =
+            model->currentItemColor().isValid() || preset > 0;
+        sourceColor->setTrashEnabled(hasColor);
+    }
+
+    copyPaste->refreshStates();
+}
+
+void SourceTab::setContainerVisible(QWidget *box, bool wantVisible)
+{
+    if (!box)
+        return;
+
+    QPropertyAnimation *prev = boxAnims.value(box, nullptr);
+    const bool movingHide = prev && prev->endValue().toInt() == 0;
+
+    if (wantVisible) {
+        if (!box->isHidden() && !movingHide)
+            return;
+
+        if (prev) {
+            boxAnims.remove(box);
+            prev->stop();
+            prev->deleteLater();
+        }
+
+        box->setMaximumHeight(0);
+        box->show();
+        startBoxAnim(box, 0, box->sizeHint().height(), false);
+    } else {
+        if (box->isHidden() || movingHide)
+            return;
+
+        if (prev) {
+            boxAnims.remove(box);
+            prev->stop();
+            prev->deleteLater();
+        }
+
+        const int from = box->height() > 0 ? box->height()
+                                           : box->sizeHint().height();
+        startBoxAnim(box, from, 0, true);
     }
 }
 
-/* ────────────────────────────────────────────────
-   APLICAR COLOR PERSONALIZADO
-   ──────────────────────────────────────────────── */
+void SourceTab::startBoxAnim(QWidget *box, int from, int to, bool hideAtEnd)
+{
+    auto *anim = new QPropertyAnimation(box, "maximumHeight", box);
+    anim->setDuration(250);
+    anim->setStartValue(from);
+    anim->setEndValue(to);
+    anim->setEasingCurve(QEasingCurve::OutCubic);
+
+    connect(anim, &QPropertyAnimation::finished, this,
+            [this, box, hideAtEnd]() {
+                boxAnims.remove(box);
+                if (hideAtEnd)
+                    box->hide();
+                box->setMaximumHeight(QWIDGETSIZE_MAX);
+            });
+
+    boxAnims.insert(box, anim);
+    anim->start();
+}
+
 void SourceTab::applyCustomColor(const QColor &color)
 {
     if (!model)
         return;
 
-    obs_sceneitem_t *item = model->selectedItem();
-    if (!item)
-        return;
-
-    if (!color.isValid())
-        return;
-
-    obs_data_t *priv = obs_sceneitem_get_private_settings(item);
-    if (!priv)
-        return;
-
-    QString argb = color.name(QColor::HexArgb);
-    obs_data_set_string(priv, "color", argb.toUtf8().constData());
-    obs_data_set_int(priv, "color-preset", 1);
-
-    obs_data_release(priv);
-    model->setSelectedItem(item);
-
-    obs_source_t *current = obs_frontend_get_current_scene();
-    obs_source_t *fallback = nullptr;
-
-    obs_frontend_source_list scenes = {};
-    obs_frontend_get_scenes(&scenes);
-
-    for (size_t i = 0; i < scenes.sources.num; i++) {
-        if (scenes.sources.array[i] != current) {
-            fallback = scenes.sources.array[i];
-            break;
-        }
-    }
-
-    if (fallback) {
-        obs_frontend_set_current_scene(fallback);
-        obs_frontend_set_current_scene(current);
-    }
-
-    obs_frontend_source_list_free(&scenes);
-    obs_source_release(current);
+    model->applyCustomColorToSelection(color);
 }

@@ -18,6 +18,15 @@ void FiltersState::setExpanded(const QString &name, bool expanded)
         expandedFilters.erase(name);
 }
 
+void FiltersState::rename(const QString &oldName, const QString &newName)
+{
+    auto it = expandedFilters.find(oldName);
+    if (it != expandedFilters.end()) {
+        expandedFilters.erase(it);
+        expandedFilters.insert(newName);
+    }
+}
+
 void FiltersState::expandAll(const std::vector<QString> &names)
 {
     expandedFilters.clear();

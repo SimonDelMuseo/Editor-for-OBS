@@ -1,0 +1,32 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="DarkCopy.svg">icons/DarkCopy.svg</file>
+        <file alias="DarkFilter.svg">icons/DarkFilter.svg</file>
+        <file alias="DarkFlip-horizontal.svg">icons/DarkFlip-horizontal.svg</file>
+        <file alias="DarkFlip-vertical.svg">icons/DarkFlip-vertical.svg</file>
+        <file alias="DarkNotes.svg">icons/DarkNotes.svg</file>
+        <file alias="DarkOutput.svg">icons/DarkOutput.svg</file>
+        <file alias="DarkPaste.svg">icons/DarkPaste.svg</file>
+        <file alias="DarkPopout.svg">icons/DarkPopout.svg</file>
+        <file alias="DarkProperties.svg">icons/DarkProperties.svg</file>
+        <file alias="DarkReset.svg">icons/DarkReset.svg</file>
+        <file alias="DarkRotate180.svg">icons/DarkRotate180.svg</file>
+        <file alias="DarkRotate90-left.svg">icons/DarkRotate90-left.svg</file>
+        <file alias="DarkRotate90-right.svg">icons/DarkRotate90-right.svg</file>
+        <file alias="DarkTransform.svg">icons/DarkTransform.svg</file>
+        <file alias="LightCopy.svg">icons/LightCopy.svg</file>
+        <file alias="LightFilter.svg">icons/LightFilter.svg</file>
+        <file alias="LightFlip-horizontal.svg">icons/LightFlip-horizontal.svg</file>
+        <file alias="LightFlip-vertical.svg">icons/LightFlip-vertical.svg</file>
+        <file alias="LightNotes.svg">icons/LightNotes.svg</file>
+        <file alias="LightOutput.svg">icons/LightOutput.svg</file>
+        <file alias="LightPaste.svg">icons/LightPaste.svg</file>
+        <file alias="LightPopout.svg">icons/LightPopout.svg</file>
+        <file alias="LightProperties.svg">icons/LightProperties.svg</file>
+        <file alias="LightReset.svg">icons/LightReset.svg</file>
+        <file alias="LightRotate180.svg">icons/LightRotate180.svg</file>
+        <file alias="LightRotate90-left.svg">icons/LightRotate90-left.svg</file>
+        <file alias="LightRotate90-right.svg">icons/LightRotate90-right.svg</file>
+        <file alias="LightTransform.svg">icons/LightTransform.svg</file>
+    </qresource>
+</RCC>

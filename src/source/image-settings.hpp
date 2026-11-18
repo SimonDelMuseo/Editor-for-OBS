@@ -5,7 +5,7 @@
 class QComboBox;
 class QPushButton;
 class QMenu;
-class EditorModel;   // ← añadido
+class EditorModel;
 
 class ImageSettings : public Box
 {
@@ -14,19 +14,10 @@ class ImageSettings : public Box
 public:
     explicit ImageSettings(QWidget *parent = nullptr);
 
-    /* ────────────────────────────────────────────────
-       MODEL — NECESARIO PARA EL BOTÓN DE SCREENSHOT
-       ──────────────────────────────────────────────── */
     void setModel(EditorModel *m) { model = m; }
 
-    /* ────────────────────────────────────────────────
-       SCALE FILTERING — PUBLIC API
-       ──────────────────────────────────────────────── */
     void setScaleFiltering(const QString &value);
 
-    /* ────────────────────────────────────────────────
-       WIDGETS PÚBLICOS PARA SOURCE-TAB
-       ──────────────────────────────────────────────── */
     QComboBox *scaleFilteringCombo = nullptr;
     QComboBox *blendingModeCombo = nullptr;
     QComboBox *blendingMethodCombo = nullptr;
@@ -43,5 +34,5 @@ private:
     QPushButton *projectorMenuButton = nullptr;
     QMenu *projectorMenu = nullptr;
 
-    EditorModel *model = nullptr;   // ← añadido
+    EditorModel *model = nullptr;
 };

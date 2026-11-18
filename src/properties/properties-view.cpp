@@ -56,6 +56,49 @@ using namespace std;
 #define QT_TO_UTF8(qs) (qs.toUtf8().constData())
 #endif
 
+static std::vector<QPointer<OBSPropertiesView>> &ViewRegistry()
+{
+	static std::vector<QPointer<OBSPropertiesView>> reg;
+	return reg;
+}
+
+QList<OBSPropertiesView *> AllPropertyViews()
+{
+	QList<OBSPropertiesView *> out;
+	for (const QPointer<OBSPropertiesView> &p : ViewRegistry()) {
+		if (p)
+			out.append(p.data());
+	}
+	return out;
+}
+
+void OBSPropertiesView::EnsureRegistered()
+{
+	if (!registeredInList) {
+		registeredInList = true;
+		ViewRegistry().push_back(this);
+	}
+}
+
+OBSPropertiesView::~OBSPropertiesView()
+{
+	if (updateSignalSrc) {
+		signal_handler_disconnect(obs_source_get_signal_handler(updateSignalSrc),
+		                          "update_properties", UpdatePropertiesSignalCb, this);
+		obs_source_release(updateSignalSrc);
+		updateSignalSrc = nullptr;
+	}
+
+
+	auto &reg = ViewRegistry();
+	for (auto it = reg.begin(); it != reg.end(); ++it) {
+		if (it->data() == this) {
+			reg.erase(it);
+			break;
+		}
+	}
+}
+
 static QString SelectDirectory(QWidget *parent, const QString &title, const QString &dir)
 {
     return QFileDialog::getExistingDirectory(parent, title, dir);
@@ -104,6 +147,33 @@ static inline long long color_to_int(QColor color)
 	return shift(color.red(), 0) | shift(color.green(), 8) | shift(color.blue(), 16) | shift(color.alpha(), 24);
 }
 
+static bool IsImmediateApplySource(void *obj)
+{
+	if (!obj)
+		return false;
+
+	const char *id = obs_source_get_unversioned_id((obs_source_t *)obj);
+	if (!id)
+		return false;
+
+	return strcmp(id, "ffmpeg_source") == 0 ||
+	       strcmp(id, "vlc_source") == 0 ||
+	       strcmp(id, "slideshow") == 0;
+}
+
+static bool IsContinuousMediaProp(obs_property_type type)
+{
+	switch (type) {
+	case OBS_PROPERTY_INT:
+	case OBS_PROPERTY_FLOAT:
+	case OBS_PROPERTY_TEXT:
+	case OBS_PROPERTY_FRAME_RATE:
+		return true;
+	default:
+		return false;
+	}
+}
+
 namespace {
 
 struct frame_rate_tag {
@@ -129,13 +199,20 @@ struct common_frame_rate {
 	media_frames_per_second fps;
 };
 
-} // namespace
+}
 
 Q_DECLARE_METATYPE(frame_rate_tag);
 Q_DECLARE_METATYPE(media_frames_per_second);
 
 void OBSPropertiesView::ReloadProperties()
 {
+	if (inModalDialog || refreshing) {
+		pendingRefresh = true;
+		return;
+	}
+
+	refreshing = true;
+
 	if (weakObj || rawObj) {
 		OBSObject strongObj = GetObject();
 		void *obj = strongObj ? strongObj.Get() : rawObj;
@@ -149,13 +226,18 @@ void OBSPropertiesView::ReloadProperties()
 	uint32_t flags = obs_properties_get_flags(properties.get());
 	deferUpdate = enableDefer && (flags & OBS_PROPERTIES_DEFER_UPDATE) != 0;
 
-	RefreshProperties();
+	RefreshPropertiesNow();
+
+	refreshing = false;
+	FlushPendingRefresh();
 }
 
 #define NO_PROPERTIES_STRING QObject::tr("Basic.PropertiesWindow.NoProperties")
 
-void OBSPropertiesView::RefreshProperties()
+void OBSPropertiesView::RefreshPropertiesNow()
 {
+    EnsureRegistered();
+
     int h, v, hend, vend;
     GetScrollPos(h, v, hend, vend);
 
@@ -170,7 +252,6 @@ void OBSPropertiesView::RefreshProperties()
     layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     widget->setLayout(layout);
 
-    /* 🔥 MODIFICADO: permitir compresión horizontal */
     QSizePolicy mainPolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
     widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
 
@@ -187,15 +268,24 @@ void OBSPropertiesView::RefreshProperties()
     setWidgetResizable(true);
     setWidget(widget);
 
-    /* 🔥 MODIFICADO: aplicar política expansiva al propio view */
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
     setMinimumWidth(0);
 
     adjustSize();
     SetScrollPos(h, v, hend, vend);
 
-    if (disableScrolling)
-        setMinimumHeight(widget->minimumSizeHint().height());
+    if (disableScrolling) {
+        setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+        const int contentH = widget ? widget->sizeHint().height() : 0;
+        if (contentH > 0)
+            setFixedHeight(contentH);
+
+        blog(LOG_INFO, "[E33][scroll] fixedH=%d contentSizeHint=%d contentMinHint=%d vp=%d",
+             height(), contentH,
+             widget ? widget->minimumSizeHint().height() : -1,
+             viewport() ? viewport()->height() : -1);
+    }
 
     lastFocused.clear();
     if (lastWidget) {
@@ -209,6 +299,28 @@ void OBSPropertiesView::RefreshProperties()
     }
 
     emit PropertiesRefreshed();
+}
+
+void OBSPropertiesView::RefreshProperties()
+{
+	if (inModalDialog || refreshing) {
+		pendingRefresh = true;
+		return;
+	}
+
+	refreshing = true;
+	RefreshPropertiesNow();
+	refreshing = false;
+	FlushPendingRefresh();
+}
+
+void OBSPropertiesView::FlushPendingRefresh()
+{
+	if (!pendingRefresh)
+		return;
+
+	pendingRefresh = false;
+	QMetaObject::invokeMethod(this, "RefreshProperties", Qt::QueuedConnection);
 }
 
 void OBSPropertiesView::SetScrollPos(int h, int v, int old_hend, int old_vend)
@@ -259,11 +371,10 @@ OBSPropertiesView::OBSPropertiesView(OBSData settings_, obs_object_t *obj,
 {
     setFrameShape(QFrame::NoFrame);
 
-    /* 🔥 AÑADIDO: matar scroll vertical interno */
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     setMinimumWidth(0);
+
+    ConnectUpdatePropertiesSignal();
 
     QMetaObject::invokeMethod(this, "ReloadProperties", Qt::QueuedConnection);
 }
@@ -284,9 +395,6 @@ OBSPropertiesView::OBSPropertiesView(OBSData settings_, void *obj,
 {
     setFrameShape(QFrame::NoFrame);
 
-    /* 🔥 AÑADIDO */
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     setMinimumWidth(0);
 
@@ -305,13 +413,31 @@ OBSPropertiesView::OBSPropertiesView(OBSData settings_, const char *type_,
 {
     setFrameShape(QFrame::NoFrame);
 
-    /* 🔥 AÑADIDO */
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     setMinimumWidth(0);
 
     QMetaObject::invokeMethod(this, "ReloadProperties", Qt::QueuedConnection);
+}
+
+void OBSPropertiesView::ConnectUpdatePropertiesSignal()
+{
+    OBSObject strongObj = GetObject();
+    obs_object_t *obj = strongObj ? (obs_object_t *)strongObj.Get() : (obs_object_t *)rawObj;
+    if (!obj || obs_obj_get_type(obj) != OBS_OBJ_TYPE_SOURCE)
+        return;
+
+    signal_handler_t *sh = obs_source_get_signal_handler((obs_source_t *)obj);
+    if (!sh)
+        return;
+
+    updateSignalSrc = obs_source_get_ref((obs_source_t *)obj);
+    signal_handler_connect(sh, "update_properties", UpdatePropertiesSignalCb, this);
+}
+
+void OBSPropertiesView::UpdatePropertiesSignalCb(void *data, calldata_t *)
+{
+    OBSPropertiesView *view = static_cast<OBSPropertiesView *>(data);
+    QMetaObject::invokeMethod(view, "ReloadProperties", Qt::QueuedConnection);
 }
 
 void OBSPropertiesView::SetDisabled(bool disabled)
@@ -325,6 +451,12 @@ void OBSPropertiesView::resizeEvent(QResizeEvent *event)
 {
 	emit PropertiesResized();
 	VScrollArea::resizeEvent(event);
+
+	if (disableScrolling && widget) {
+		const int want = widget->sizeHint().height();
+		if (want > 0 && want != height())
+			setFixedHeight(want);
+	}
 }
 
 template<typename Sender, typename SenderParent, typename... Args>
@@ -768,7 +900,6 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 	connect(combo, &QComboBox::currentIndexChanged, info, &WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
-	/* trigger a settings update if the index was not found */
 	if (count && idx == -1)
 		info->ControlChanged();
 
@@ -808,7 +939,6 @@ void OBSPropertiesView::AddEditableList(obs_property_t *prop, QFormLayout *layou
 		list_item->setSelected(obs_data_get_bool(item, "selected"));
 		list_item->setHidden(obs_data_get_bool(item, "hidden"));
 		QString uuid = QT_UTF8(obs_data_get_string(item, "uuid"));
-		/* for backwards compatibility */
 		if (uuid.isEmpty()) {
 			uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
 			obs_data_set_string(item, "uuid", QT_TO_UTF8(uuid));
@@ -991,7 +1121,7 @@ template<> struct default_delete<obs_data_item_t> {
 	void operator()(obs_data_item_t *item) { obs_data_item_release(&item); }
 };
 
-} // namespace std
+}
 
 template<typename T> static double make_epsilon(T val)
 {
@@ -1024,12 +1154,6 @@ static bool matches_ranges(media_frames_per_second &best_match, media_frames_per
 	for (auto &pair : fps_ranges) {
 		auto max_ = convert_fn(pair.first);
 		auto min_ = convert_fn(pair.second);
-		/*blog(LOG_INFO, "%lg <= %lg <= %lg? %s %s %s",
-				min_, val, max_,
-				fabsl(min_ - val) < epsilon ? "true" : "false",
-				min_ <= val && val <= max_  ? "true" : "false",
-				fabsl(min_ - val) < epsilon ? "true" :
-				"false");*/
 
 		if (matches_range(best_match, fps, pair))
 			return true;
@@ -1212,7 +1336,6 @@ static QWidget *CreateRationalFPS(OBSFrameRatePropertyWidget *fpsProps, bool &se
 
 	auto combo = fpsProps->fpsRange = new QComboBox();
 	auto convert_fps = media_frames_per_second_to_fps;
-	//auto convert_fi  = media_frames_per_second_to_frame_interval;
 
 	for (size_t i = 0; i < fpsProps->fps_ranges.size(); i++) {
 		auto &pair = fpsProps->fps_ranges[i];
@@ -1307,8 +1430,7 @@ static OBSFrameRatePropertyWidget *CreateFrameRateWidget(obs_property_t *prop, b
 	if (option_found)
 		stack->setCurrentIndex(stack->count() - 1);
 	else if (!match_found) {
-		int idx = current_fps ? 1 : 0; // Rational for "unsupported"
-					       // Simple as default
+		int idx = current_fps ? 1 : 0;
 		stack->setCurrentIndex(idx);
 		combo->setCurrentIndex(idx);
 		warning = true;
@@ -1523,14 +1645,12 @@ void OBSPropertiesView::AddGroup(obs_property_t *prop, QFormLayout *layout)
 	const char *desc = obs_property_description(prop);
 	enum obs_group_type type = obs_property_group_type(prop);
 
-	// Create GroupBox
 	QGroupBox *groupBox = new QGroupBox(QT_UTF8(desc));
 	groupBox->setCheckable(type == OBS_GROUP_CHECKABLE);
 	groupBox->setChecked(groupBox->isCheckable() ? val : true);
 	groupBox->setAccessibleName("group");
 	groupBox->setEnabled(obs_property_enabled(prop));
 
-	// Create Layout and build content
 	QFormLayout *subLayout = new QFormLayout();
 	subLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 	groupBox->setLayout(subLayout);
@@ -1542,14 +1662,11 @@ void OBSPropertiesView::AddGroup(obs_property_t *prop, QFormLayout *layout)
 		obs_property_next(&el);
 	}
 
-	// Insert into UI
 	layout->setWidget(layout->rowCount(), QFormLayout::ItemRole::SpanningRole, groupBox);
 
-	// Register Group Widget
 	WidgetInfo *info = new WidgetInfo(this, prop, groupBox);
 	children.emplace_back(info);
 
-	// Signals
 	connect(groupBox, &QGroupBox::toggled, info, &WidgetInfo::ControlChanged);
 }
 
@@ -1806,11 +1923,16 @@ bool WidgetInfo::PathChanged(const char *setting)
 
 	QLineEdit *edit = static_cast<QLineEdit *>(widget);
 
+	QPointer<OBSPropertiesView> viewGuard(view);
+	QPointer<QLineEdit> editGuard(edit);
+
 	QString startDir = edit->text();
 	if (startDir.isEmpty())
 		startDir = default_path;
 
 	QString path;
+
+	view->inModalDialog = true;
 
 	if (type == OBS_PATH_DIRECTORY)
 		path = SelectDirectory(view, QT_UTF8(desc), startDir);
@@ -1819,16 +1941,24 @@ bool WidgetInfo::PathChanged(const char *setting)
 	else if (type == OBS_PATH_FILE_SAVE)
 		path = SaveFile(view, QT_UTF8(desc), startDir, QT_UTF8(filter));
 
+	if (viewGuard)
+		viewGuard->inModalDialog = false;
+
 #ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
-	widget->window()->raise();
+	if (editGuard)
+		editGuard->window()->raise();
 #endif
 
-	if (path.isEmpty())
+	if (!viewGuard)
 		return false;
 
-	edit->setText(path);
-	obs_data_set_string(view->settings, setting, QT_TO_UTF8(path));
+	viewGuard->FlushPendingRefresh();
+
+	if (path.isEmpty() || !editGuard)
+		return false;
+
+	editGuard->setText(path);
+	obs_data_set_string(viewGuard->settings, setting, QT_TO_UTF8(path));
 	return true;
 }
 
@@ -1885,14 +2015,12 @@ bool WidgetInfo::ColorChangedInternal(const char *setting, bool supportAlpha)
 	}
 
 #ifdef __linux__
-	// TODO: Revisit hang on Ubuntu with native dialog
 	options |= QColorDialog::DontUseNativeDialog;
 #endif
 
 	color = QColorDialog::getColor(color, view, QT_UTF8(desc), options);
 
 #ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
 	widget->window()->raise();
 #endif
 
@@ -2082,19 +2210,15 @@ void WidgetInfo::ControlChanged()
             return;
         break;
 
-    /* 🔥 VLC PLAYLIST: aplicar cambios inmediatamente */
     case OBS_PROPERTY_EDITABLE_LIST: {
-        // ya se actualizó view->settings internamente
         OBSObject strongObj = view->GetObject();
         void *obj = strongObj ? strongObj.Get() : view->rawObj;
 
         if (obj) {
             obs_source_t *src = (obs_source_t *)obj;
 
-            // aplicar settings nuevos
             obs_source_update(src, view->settings);
 
-            // reiniciar VLC
             const char *id = obs_source_get_unversioned_id(src);
             if (id && strcmp(id, "vlc_source") == 0) {
                 obs_source_media_restart(src);
@@ -2116,7 +2240,6 @@ void WidgetInfo::ControlChanged()
         break;
     }
 
-    /* 🔥 PATH MULTIMEDIA: aplicar al instante */
     if (type == OBS_PROPERTY_PATH) {
         OBSObject strongObj = view->GetObject();
         void *obj = strongObj ? strongObj.Get() : view->rawObj;
@@ -2124,14 +2247,13 @@ void WidgetInfo::ControlChanged()
         if (obj) {
             obs_source_t *src = (obs_source_t *)obj;
 
-            obs_source_update(src, view->settings);
-
             const char *id = obs_source_get_unversioned_id(src);
             if (id && (
                 strcmp(id, "ffmpeg_source") == 0 ||
                 strcmp(id, "vlc_source") == 0 ||
                 strcmp(id, "slideshow") == 0)) {
 
+                obs_source_update(src, view->settings);
                 obs_source_media_restart(src);
             }
         }
@@ -2143,7 +2265,12 @@ void WidgetInfo::ControlChanged()
         connect(update_timer, &QTimer::timeout, this, [this, &ru = recently_updated]() {
             OBSObject strongObj = view->GetObject();
             void *obj = strongObj ? strongObj.Get() : view->rawObj;
-            if (obj && view->callback && !view->deferUpdate) {
+
+            const bool mediaDebounce =
+                IsImmediateApplySource(obj) &&
+                IsContinuousMediaProp(obs_property_get_type(property));
+
+            if (obj && view->callback && (!view->deferUpdate || mediaDebounce)) {
                 view->callback(obj, old_settings_cache, view->settings);
             }
 
@@ -2158,7 +2285,15 @@ void WidgetInfo::ControlChanged()
         update_timer->start(500);
     }
 
-    if (!view->DeferUpdate())
+    OBSObject applyObj = view->GetObject();
+    void *applyRaw = applyObj ? applyObj.Get() : view->rawObj;
+    const bool applyNow = !view->DeferUpdate() ||
+                          (IsImmediateApplySource(applyRaw) &&
+                           !IsContinuousMediaProp(type));
+
+    if (applyNow && applyObj && view->callback)
+        obs_source_update((obs_source_t *)applyObj.Get(), view->settings);
+    else if (applyNow)
         view->UpdateSettings();
 
     if (view->visUpdateCb && !view->deferUpdate) {
@@ -2170,9 +2305,21 @@ void WidgetInfo::ControlChanged()
 
     view->SignalChanged();
 
-    if (obs_property_modified(property, view->settings)) {
-        view->lastFocused = setting;
-        QMetaObject::invokeMethod(view, "RefreshProperties", Qt::QueuedConnection);
+    const bool pathPicked = (type == OBS_PROPERTY_PATH);
+
+    if (obs_property_modified(property, view->settings) || pathPicked) {
+        const std::string focusedSetting(setting);
+
+        if (recently_updated && update_timer) {
+            update_timer->stop();
+            recently_updated = false;
+            if (applyObj && view->callback)
+                view->callback(applyObj.Get(), old_settings_cache, view->settings);
+        }
+
+        view->lastFocused = focusedSetting;
+        QMetaObject::invokeMethod(view, pathPicked ? "ReloadProperties" : "RefreshProperties",
+                                  Qt::QueuedConnection);
     }
 }
 
@@ -2245,7 +2392,6 @@ void WidgetInfo::EditListAdd()
 		return;
 	}
 
-	/* Files and URLs */
 	QMenu popup(view->window());
 
 	QAction *action;
@@ -2300,7 +2446,6 @@ void WidgetInfo::EditListAddFiles()
 
 	QStringList files = OpenFiles(list, title, QT_UTF8(default_path), QT_UTF8(filter));
 #ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
 	widget->window()->raise();
 #endif
 
@@ -2326,7 +2471,6 @@ void WidgetInfo::EditListAddDir()
 
 	QString dir = SelectDirectory(list, title, QT_UTF8(default_path));
 #ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
 	widget->window()->raise();
 #endif
 

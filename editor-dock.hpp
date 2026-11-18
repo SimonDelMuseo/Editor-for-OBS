@@ -1,6 +1,3 @@
-/* ────────────────────────────────────────────────
-   EDITOR-DOCK.HPP — DOCK PADRE TIPO EXELDRO (QFRAME)
-   ──────────────────────────────────────────────── */
 #pragma once
 
 #include <QFrame>
@@ -11,6 +8,12 @@ class EditorWidget;
 class EditorModel;
 class Information;
 class FiltersHeader;
+class FiltersRenderer;
+class Header;
+class QPropertyAnimation;
+class QResizeEvent;
+
+struct obs_source;
 
 class EditorDock : public QFrame
 {
@@ -18,10 +21,12 @@ class EditorDock : public QFrame
 
 public:
     explicit EditorDock(EditorModel *model, QWidget *parent = nullptr);
-    ~EditorDock();   // ← NUEVO
+    ~EditorDock();
 
-    // ← NUEVO: registrar popouts creados
     void registerPopout(QWidget *w);
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     EditorWidget *editorWidget = nullptr;
@@ -32,11 +37,28 @@ private:
     QWidget *bottomBar  = nullptr;
 
     FiltersHeader *filtersHeader = nullptr;
+    Header *header = nullptr;
 
-    // ← NUEVO: lista de popouts abiertos
+    QWidget *filtersBar = nullptr;
+    void setFiltersBarVisible(bool show);
+    QPropertyAnimation *filtersBarAnim = nullptr;
+    bool filtersBarShown = false;
+
     QList<QPointer<QWidget>> openPopouts;
 
     void refreshUI();
+
+    FiltersRenderer *currentRenderer() const;
+
+    void refreshFiltersHeaderStates();
+
+    void applyDefaultCategoryForSource();
+    obs_source *lastCategorySource = nullptr;
+
+    void registerHotkeys();
+    void unregisterHotkeys();
+    void hotkeyDispatch(size_t id);
+    size_t hotkeyIds[8] = {};
 
 private slots:
     void onTabChanged(int index);

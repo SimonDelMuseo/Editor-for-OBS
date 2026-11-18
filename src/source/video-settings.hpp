@@ -1,12 +1,9 @@
-// video-settings.hpp
 #pragma once
 #include <QWidget>
 #include "src/widgets/box.hpp"
 
-/* ────────────────────────────────────────────────
-   VIDEO SETTINGS — DESENTRELACADO
-   ──────────────────────────────────────────────── */
 class QComboBox;
+class QRadioButton;
 class EditorModel;
 
 class VideoSettings : public Box
@@ -19,6 +16,8 @@ public:
     void setModel(EditorModel *m);
 
 private:
-    EditorModel *model = nullptr;
-    QComboBox   *deinterlaceCombo = nullptr;
+    EditorModel   *model = nullptr;
+    QComboBox     *deinterlaceCombo = nullptr;
+    QRadioButton  *topFieldBtn = nullptr;
+    QRadioButton  *bottomFieldBtn = nullptr;
 };

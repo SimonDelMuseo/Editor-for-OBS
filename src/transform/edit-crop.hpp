@@ -9,7 +9,6 @@ class EditCrop : public QWidget
 public:
     explicit EditCrop(QWidget *parent = nullptr);
 
-    /* Refrescar desde el modelo */
     void setCrop(double left, double top, double right, double bottom);
 
 signals:
@@ -23,6 +22,4 @@ private:
     QDoubleSpinBox *spinT = nullptr;
     QDoubleSpinBox *spinR = nullptr;
     QDoubleSpinBox *spinB = nullptr;
-
-    bool blockSignalsFlag = false;
 };

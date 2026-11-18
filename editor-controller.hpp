@@ -23,15 +23,36 @@ public:
     ~EditorController();
 
 private slots:
-    void handleSelectionPoll();
+    void handleSafetyPoll();
 
 private:
     EditorDock  *dock      = nullptr;
     EditorModel *model     = nullptr;
+
     QTimer      *pollTimer = nullptr;
+
+    obs_source_t *boundSceneSource = nullptr;
 
     void handleSceneChanged();
 
+    void connectSceneSignals();
+    void disconnectSceneSignals();
+    void connectGlobalSignals();
+    void disconnectGlobalSignals();
+
+    obs_source_t *acquireActiveScene() const;
+
+    void rescanSelection();
+
     static void frontend_event_callback(enum obs_frontend_event event,
                                         void *userdata);
+
+    static void scene_item_select_cb(void *data, calldata_t *cd);
+    static void scene_item_deselect_cb(void *data, calldata_t *cd);
+    static void scene_item_remove_cb(void *data, calldata_t *cd);
+    static void scene_item_add_cb(void *data, calldata_t *cd);
+    static void scene_item_transform_cb(void *data, calldata_t *cd);
+    static void scene_item_state_cb(void *data, calldata_t *cd);
+
+    static void global_filter_changed_cb(void *data, calldata_t *cd);
 };

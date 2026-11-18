@@ -4,6 +4,7 @@
 #include <QTabWidget>
 
 class EditorModel;
+class QPropertyAnimation;
 
 class EditorWidget : public QWidget
 {
@@ -14,16 +15,13 @@ public:
 
     QTabWidget *getTabs() const { return tabs; }
 
-    /* ────────────────────────────────────────────────
-       NUEVO — MÉTODO PÚBLICO PARA CAMBIAR A LA TAB
-       DE FILTROS DE ESCENA (índice 3)
-       ──────────────────────────────────────────────── */
     void showSourceTab();
     void showPropertiesTab();
     void showFiltersTab();
     void showSceneFiltersTab();
     void showTransformTab();
-    void showMiscTab();
+    void showSceneNotesTab();
+    void showSourceNotesTab();
 
 signals:
     void tabChanged(int index); 
@@ -31,6 +29,13 @@ signals:
 private:
     QTabWidget *tabs  = nullptr;
     EditorModel *model = nullptr;
+
+    void animateTabSwitch(int from, int to);
+
+    int lastTabIndex = 0;
+    QWidget *switchOldPage = nullptr;
+    QWidget *switchNewPage = nullptr;
+    QList<QPropertyAnimation *> tabSwitchAnims;
 
 private slots:
     void onTabChanged(int index);    

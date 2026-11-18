@@ -1,4 +1,5 @@
 #include "box-filters.hpp"
+#include "editor-ui-helpers.hpp"
 #include <QPainter>
 #include <QStyleOption>
 
@@ -19,16 +20,25 @@ void BoxFilters::paintEvent(QPaintEvent *event)
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
 
-    const int radius = 5;
+    const editorui::BoxBorder b = editorui::GetThemeBoxBorder();
 
-    QRect r = rect().adjusted(1, 1, -1, -1);
+    const int margin = qMax(1, b.width);
+    const QRect r = rect().adjusted(margin, margin, -margin, -margin);
+    const int radius =
+        qBound(0, b.radius, qMin(r.width(), r.height()) / 2);
 
     QColor bg = palette().color(QPalette::AlternateBase);
     p.setBrush(bg);
     p.setPen(Qt::NoPen);
-    p.drawRoundedRect(r, radius, radius);
+    if (radius > 0)
+        p.drawRoundedRect(r, radius, radius);
+    else
+        p.drawRect(r);
 
-    p.setPen(QColor(80, 80, 80));
+    p.setPen(QPen(b.color, b.width));
     p.setBrush(Qt::NoBrush);
-    p.drawRoundedRect(r, radius, radius);
+    if (radius > 0)
+        p.drawRoundedRect(r, radius, radius);
+    else
+        p.drawRect(r);
 }
